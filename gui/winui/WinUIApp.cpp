@@ -1,0 +1,4954 @@
+#include "WinUIApp.h"
+
+#include "resource.h"
+#include "WinUITrainingRunner.h"
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <cwchar>
+#include <filesystem>
+#include <functional>
+#include <initializer_list>
+#include <memory>
+#include <mutex>
+#include <shellapi.h>
+#include <shobjidl_core.h>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include <windows.h>
+
+#include <winrt/Microsoft.UI.Dispatching.h>
+#include <winrt/Microsoft.UI.Text.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
+#include <winrt/Microsoft.UI.Xaml.Input.h>
+#include <winrt/Microsoft.UI.Xaml.Media.h>
+#include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
+#include <microsoft.ui.xaml.window.h>
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.UI.h>
+#include <winrt/Windows.UI.Text.h>
+#include <winrt/Microsoft.UI.h>
+#include <winrt/Microsoft.UI.Windowing.h>
+
+namespace heliosav::gui {
+namespace xaml = winrt::Microsoft::UI::Xaml;
+namespace controls = winrt::Microsoft::UI::Xaml::Controls;
+namespace media = winrt::Microsoft::UI::Xaml::Media;
+namespace win_text = winrt::Windows::UI::Text;
+using Color = winrt::Windows::UI::Color;
+
+namespace {
+
+struct ThemePalette {
+    Color canvas;
+    Color sidebar;
+    Color card;
+    Color border;
+    Color primary;
+    Color primary_hover;
+    Color text;
+    Color muted;
+    Color sidebar_text;
+    Color status_background;
+    Color status_text;
+    Color button_text;
+    bool dark{false};
+};
+
+struct EngineUiState {
+    UiStrings strings;
+    ThemePalette palette;
+    controls::TextBlock connection{nullptr};
+    controls::TextBlock status{nullptr};
+    controls::TextBlock scan_status{nullptr};
+    controls::TextBlock statistics{nullptr};
+    controls::TextBlock progress{nullptr};
+    controls::TextBlock progress_details{nullptr};
+    controls::TextBlock elapsed{nullptr};
+    controls::TextBlock scan_indicator{nullptr};
+    controls::TextBlock sandbox_analysis{nullptr};
+controls::ListView activity{nullptr};
+    controls::ListView activity_page{nullptr};
+    controls::ListView scan_threats{nullptr};
+    controls::ListView threats{nullptr};
+    controls::ListView attack_chain{nullptr};
+    controls::ListView quarantine{nullptr};
+    controls::TextBlock scan_threats_empty{nullptr};
+    controls::TextBlock threats_empty{nullptr};
+    controls::TextBlock attack_chain_empty{nullptr};
+    controls::TextBlock quarantine_empty{nullptr};
+    struct ThreatEntry {
+        std::wstring path;
+        std::wstring reason;
+        controls::CheckBox checkbox{nullptr};
+    };
+struct QuarantineEntry {
+        std::wstring id;
+        std::wstring original_path;
+        std::wstring quarantine_path;
+        std::wstring status;
+        controls::CheckBox checkbox{nullptr};
+    };
+    struct AttackChainEntry {
+        EngineAttackChain chain;
+        xaml::UIElement row{nullptr};
+    };
+    std::vector<ThreatEntry> scan_threat_entries;
+    std::vector<ThreatEntry> realtime_threat_entries;
+    std::vector<QuarantineEntry> quarantine_entries;
+    std::vector<AttackChainEntry> attack_chain_entries;
+    uint64_t files_processed{0};
+    uint64_t total_files{0};
+    uint64_t threat_count{0};
+    uint64_t error_count{0};
+    bool scan_active{false};
+    bool engine_connected{false};
+    uint64_t engine_disconnects{0};
+    uint32_t scan_indicator_frame{0};
+    std::chrono::steady_clock::time_point scan_started_at{};
+    uint64_t kernel_events_dropped{0};
+    std::vector<std::wstring> engine_errors;
+    winrt::Microsoft::UI::Dispatching::DispatcherQueueTimer scan_timer{nullptr};
+    std::shared_ptr<ScanUiSnapshot> snapshot;
+    std::shared_ptr<EngineScanResponse> last_sandbox_response;
+    std::wstring pending_model_import_path;
+};
+
+struct NavigationPage {
+    winrt::hstring nav_label;
+    winrt::hstring header;
+    xaml::UIElement content{nullptr};
+};
+
+Color ColorOf(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha = 255) {
+    return Color{alpha, red, green, blue};
+}
+
+uint8_t AlphaForTransparency(uint8_t transparency_percent) {
+    const unsigned int percent = std::min<unsigned int>(transparency_percent, 55u);
+    return static_cast<uint8_t>(255u - (percent * 255u / 100u));
+}
+
+void ApplyWindowIcon(HWND window) {
+    if (window == nullptr) {
+        return;
+    }
+    HICON icon = LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_HELIOSAV_ICON));
+    if (icon == nullptr) {
+        return;
+    }
+    SendMessageW(window, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(icon));
+    SendMessageW(window, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(icon));
+}
+
+void SetWindowTopmost(HWND window, bool topmost) {
+    if (window == nullptr || !IsWindow(window)) {
+        return;
+    }
+    SetWindowPos(
+        window,
+        topmost ? HWND_TOPMOST : HWND_NOTOPMOST,
+        0,
+        0,
+        0,
+        0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    if (topmost) {
+        SetForegroundWindow(window);
+        BringWindowToTop(window);
+    }
+}
+
+ThemePalette Palette(UiStyle style) {
+    switch (style) {
+    case UiStyle::FluentDark:
+        return {
+            ColorOf(15, 23, 42), ColorOf(9, 15, 29), ColorOf(23, 32, 51),
+            ColorOf(51, 65, 85), ColorOf(59, 130, 246), ColorOf(96, 165, 250),
+            ColorOf(241, 245, 249), ColorOf(148, 163, 184), ColorOf(226, 232, 240),
+            ColorOf(14, 165, 233, 50), ColorOf(186, 230, 253), ColorOf(255, 255, 255),
+            true};
+    case UiStyle::Aurora:
+        return {
+            ColorOf(12, 20, 38), ColorOf(20, 22, 56), ColorOf(25, 35, 64),
+            ColorOf(67, 56, 122), ColorOf(124, 58, 237), ColorOf(167, 139, 250),
+            ColorOf(245, 243, 255), ColorOf(186, 178, 220), ColorOf(224, 231, 255),
+            ColorOf(45, 212, 191, 42), ColorOf(153, 246, 228), ColorOf(255, 255, 255),
+            true};
+    case UiStyle::HighContrast:
+        return {
+            ColorOf(0, 0, 0), ColorOf(0, 0, 0), ColorOf(0, 0, 0),
+            ColorOf(255, 255, 255), ColorOf(0, 0, 255), ColorOf(255, 255, 0),
+            ColorOf(255, 255, 255), ColorOf(255, 255, 255), ColorOf(255, 255, 255),
+            ColorOf(0, 0, 0), ColorOf(255, 255, 0), ColorOf(0, 0, 0),
+            true};
+    case UiStyle::Glass:
+        return {
+            ColorOf(226, 232, 240), ColorOf(191, 219, 254), ColorOf(255, 255, 255),
+            ColorOf(147, 197, 253), ColorOf(14, 116, 144), ColorOf(6, 182, 212),
+            ColorOf(15, 23, 42), ColorOf(71, 85, 105), ColorOf(30, 64, 175),
+            ColorOf(14, 116, 144, 38), ColorOf(207, 250, 254), ColorOf(255, 255, 255),
+            false};
+    case UiStyle::Graphite:
+        return {
+            ColorOf(24, 24, 27), ColorOf(39, 39, 42), ColorOf(47, 47, 52),
+            ColorOf(82, 82, 91), ColorOf(245, 158, 11), ColorOf(251, 191, 36),
+            ColorOf(250, 250, 250), ColorOf(161, 161, 170), ColorOf(228, 228, 231),
+            ColorOf(245, 158, 11, 48), ColorOf(254, 243, 199), ColorOf(24, 24, 27),
+            true};
+    case UiStyle::Rose:
+        return {
+            ColorOf(255, 247, 249), ColorOf(254, 226, 226), ColorOf(255, 255, 255),
+            ColorOf(253, 164, 175), ColorOf(225, 29, 72), ColorOf(244, 63, 94),
+            ColorOf(76, 5, 25), ColorOf(136, 19, 55), ColorOf(157, 23, 77),
+            ColorOf(225, 29, 72, 34), ColorOf(255, 228, 230), ColorOf(255, 255, 255),
+            false};
+    case UiStyle::FluentLight:
+    default:
+        // XIGUA 风格：清新淡蓝灰背景、白色卡片、蓝色主色、橙色警告渐变
+        return {
+            ColorOf(238, 243, 248), ColorOf(232, 238, 246), ColorOf(255, 255, 255),
+            ColorOf(224, 228, 236), ColorOf(30, 112, 240), ColorOf(59, 130, 246),
+            ColorOf(21, 31, 47), ColorOf(86, 101, 127), ColorOf(30, 64, 175),
+            ColorOf(30, 112, 240, 42), ColorOf(186, 230, 253), ColorOf(255, 255, 255),
+            false};
+    }
+}
+
+ThemePalette Palette(UiStyle style, UiAccent accent) {
+    auto palette = Palette(style);
+    switch (accent) {
+    case UiAccent::Teal:
+        palette.primary = ColorOf(13, 148, 136);
+        palette.primary_hover = ColorOf(20, 184, 166);
+        break;
+    case UiAccent::Orange:
+        palette.primary = ColorOf(234, 88, 12);
+        palette.primary_hover = ColorOf(249, 115, 22);
+        break;
+    case UiAccent::Violet:
+        palette.primary = ColorOf(124, 58, 237);
+        palette.primary_hover = ColorOf(167, 139, 250);
+        break;
+    case UiAccent::Blue:
+    default:
+        break;
+    }
+    if (!palette.dark && style == UiStyle::FluentLight) {
+        palette.status_background = ColorOf(37, 99, 235, 32);
+        palette.status_text = ColorOf(30, 64, 175);
+    }
+    return palette;
+}
+
+media::SolidColorBrush Brush(Color color) {
+    return media::SolidColorBrush(color);
+}
+
+xaml::Thickness Inset(double value) {
+    return xaml::Thickness{value, value, value, value};
+}
+
+xaml::Thickness Inset(double left, double top, double right, double bottom) {
+    return xaml::Thickness{left, top, right, bottom};
+}
+
+controls::TextBlock Text(
+    winrt::hstring const& value,
+    double size,
+    win_text::FontWeight const& weight,
+    media::Brush const& foreground) {
+    auto block = controls::TextBlock();
+    block.Text(value);
+    block.FontFamily(media::FontFamily(L"Segoe UI Variable Text"));
+    block.FontSize(size);
+    block.FontWeight(weight);
+    block.Foreground(foreground);
+    block.TextWrapping(xaml::TextWrapping::Wrap);
+    return block;
+}
+
+winrt::hstring HString(const std::wstring& value) {
+    return winrt::hstring(value);
+}
+
+controls::Border Card(xaml::UIElement const& child, ThemePalette const& palette) {
+    auto card = controls::Border();
+    card.Background(Brush(palette.card));
+    card.BorderBrush(Brush(palette.border));
+    card.BorderThickness(Inset(1));
+    card.CornerRadius(xaml::CornerRadius{12, 12, 12, 12});
+    card.Margin(Inset(0, 0, 0, 16));
+    card.Padding(Inset(20));
+    card.Child(child);
+    return card;
+}
+
+controls::Button CommandButton(winrt::hstring const& label, ThemePalette const& palette) {
+    auto button = controls::Button();
+    button.Content(winrt::box_value(label));
+    button.MinWidth(132);
+    button.Margin(Inset(0, 0, 10, 0));
+    button.Padding(Inset(14, 9, 14, 9));
+    button.Background(Brush(palette.primary));
+    button.Foreground(Brush(palette.button_text));
+    button.BorderBrush(Brush(palette.primary_hover));
+    button.BorderThickness(Inset(1));
+    button.CornerRadius(xaml::CornerRadius{7, 7, 7, 7});
+    return button;
+}
+
+winrt::hstring StyleName(UiStyle style, const UiStrings& strings) {
+    switch (style) {
+    case UiStyle::FluentDark: return HString(strings.style_fluent_dark);
+    case UiStyle::Aurora: return HString(strings.style_aurora);
+    case UiStyle::HighContrast: return HString(strings.style_high_contrast);
+    case UiStyle::Glass: return L"Glass";
+    case UiStyle::Graphite: return L"Graphite";
+    case UiStyle::Rose: return L"Rose";
+    case UiStyle::FluentLight:
+    default: return HString(strings.style_fluent_light);
+    }
+}
+
+winrt::hstring AccentName(UiAccent accent) {
+    switch (accent) {
+    case UiAccent::Teal: return L"Teal";
+    case UiAccent::Orange: return L"Orange";
+    case UiAccent::Violet: return L"Violet";
+    case UiAccent::Blue:
+    default: return L"Blue";
+    }
+}
+
+void AppendLog(const controls::ListView& log, const winrt::hstring& message) {
+    if (!log) {
+        return;
+    }
+    if (log.Items().Size() >= 200) {
+        log.Items().RemoveAt(0);
+    }
+    log.Items().Append(winrt::box_value(message));
+}
+
+void AppendActivity(const std::shared_ptr<EngineUiState>& state, const winrt::hstring& message) {
+    if (!state) {
+        return;
+    }
+    AppendLog(state->activity, message);
+    AppendLog(state->activity_page, message);
+}
+
+void SyncScanSnapshot(const std::shared_ptr<EngineUiState>& state) {
+    if (!state || !state->snapshot) {
+        return;
+    }
+    state->snapshot->files_processed = state->files_processed;
+    state->snapshot->total_files = state->total_files;
+    state->snapshot->threat_count = state->threat_count;
+    state->snapshot->error_count = state->error_count;
+    state->snapshot->scan_active = state->scan_active;
+    state->snapshot->engine_connected = state->engine_connected;
+    state->snapshot->engine_disconnects = state->engine_disconnects;
+    state->snapshot->scan_indicator_frame = state->scan_indicator_frame;
+    state->snapshot->scan_started_at = state->scan_started_at;
+    state->snapshot->scan_threats.clear();
+    state->snapshot->scan_threats.reserve(state->scan_threat_entries.size());
+    for (const auto& entry : state->scan_threat_entries) {
+        state->snapshot->scan_threats.push_back({entry.path, entry.reason});
+    }
+    state->snapshot->realtime_threats.clear();
+    state->snapshot->realtime_threats.reserve(state->realtime_threat_entries.size());
+    for (const auto& entry : state->realtime_threat_entries) {
+        state->snapshot->realtime_threats.push_back({entry.path, entry.reason});
+    }
+    state->snapshot->attack_chains.clear();
+    state->snapshot->attack_chains.reserve(state->attack_chain_entries.size());
+    for (const auto& entry : state->attack_chain_entries) {
+        state->snapshot->attack_chains.push_back(entry.chain);
+    }
+    state->snapshot->kernel_events_dropped = state->kernel_events_dropped;
+    state->snapshot->engine_errors = state->engine_errors;
+}
+
+void RememberEngineError(const std::shared_ptr<EngineUiState>& state, const std::wstring& message) {
+    if (!state || message.empty()) {
+        return;
+    }
+    if (state->engine_errors.size() >= 100) {
+        state->engine_errors.erase(state->engine_errors.begin());
+    }
+    state->engine_errors.push_back(message);
+    SyncScanSnapshot(state);
+}
+
+template <typename Function>
+void RunUiSafely(const wchar_t* stage, Function&& function) {
+    try {
+        function();
+    } catch (const winrt::hresult_error& error) {
+        NotifyWinUiStage(
+            std::wstring(stage) + L": WinRT exception 0x"
+            + std::to_wstring(static_cast<uint32_t>(error.code().value))
+            + L": " + std::wstring(error.message().c_str()));
+    } catch (const std::exception&) {
+        NotifyWinUiStage(std::wstring(stage) + L": std::exception");
+    } catch (...) {
+        NotifyWinUiStage(std::wstring(stage) + L": unknown exception");
+    }
+}
+
+std::wstring UserProfile() {
+    std::array<wchar_t, 32768> buffer{};
+    const DWORD size = GetEnvironmentVariableW(
+        L"USERPROFILE", buffer.data(), static_cast<DWORD>(buffer.size()));
+    if (size > 0 && size < buffer.size()) {
+        return std::wstring(buffer.data(), size);
+    }
+    return L"C:\\Users\\Public";
+}
+
+std::wstring EnvironmentValue(const wchar_t* name, const std::wstring& fallback = {}) {
+    std::array<wchar_t, 32768> buffer{};
+    const DWORD size = GetEnvironmentVariableW(
+        name, buffer.data(), static_cast<DWORD>(buffer.size()));
+    if (size > 0 && size < buffer.size()) {
+        return std::wstring(buffer.data(), size);
+    }
+    return fallback;
+}
+
+void AppendExistingScanTarget(std::vector<std::wstring>& targets, const std::wstring& path) {
+    if (path.empty()) {
+        return;
+    }
+    std::error_code error;
+    if (std::filesystem::is_regular_file(path, error) || std::filesystem::is_directory(path, error)) {
+        targets.push_back(path);
+    }
+}
+
+void AppendTopLevelFiles(
+    std::vector<std::wstring>& targets,
+    const std::wstring& directory,
+    size_t maximum_files) {
+    if (directory.empty() || maximum_files == 0) {
+        return;
+    }
+    std::error_code error;
+    if (!std::filesystem::is_directory(directory, error)) {
+        return;
+    }
+    size_t appended = 0;
+    for (std::filesystem::directory_iterator it(directory, std::filesystem::directory_options::skip_permission_denied, error), end;
+         !error && it != end && appended < maximum_files;
+         it.increment(error)) {
+        const auto& entry = *it;
+        std::error_code entry_error;
+        if (entry.is_regular_file(entry_error)) {
+            targets.push_back(entry.path().wstring());
+            ++appended;
+        }
+    }
+}
+
+std::vector<std::wstring> QuickScanTargets() {
+    const std::wstring profile = UserProfile();
+    const std::wstring program_data = EnvironmentValue(L"ProgramData", L"C:\\ProgramData");
+    const std::wstring temp = EnvironmentValue(L"TEMP", profile + L"\\AppData\\Local\\Temp");
+
+    std::vector<std::wstring> targets;
+    // Keep quick scan responsive: scan high-risk entry files directly and
+    // small persistence directories recursively, but avoid descending into
+    // arbitrary Desktop/Downloads project trees unless the user asks for a
+    // full or custom folder scan.
+    AppendTopLevelFiles(targets, profile + L"\\Downloads", 512);
+    AppendTopLevelFiles(targets, profile + L"\\Desktop", 512);
+    AppendTopLevelFiles(targets, temp, 256);
+    AppendTopLevelFiles(targets, profile + L"\\AppData\\Roaming\\Microsoft\\Windows\\Recent", 256);
+    AppendExistingScanTarget(
+        targets,
+        profile + L"\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup");
+    AppendExistingScanTarget(
+        targets,
+        program_data + L"\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp");
+
+    if (targets.empty()) {
+        AppendExistingScanTarget(targets, profile + L"\\Downloads");
+        AppendExistingScanTarget(targets, profile + L"\\Desktop");
+    }
+
+    std::sort(targets.begin(), targets.end());
+    targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
+    return targets;
+}
+
+bool NativeTrayDisabled() {
+    wchar_t value[8]{};
+    const DWORD length = GetEnvironmentVariableW(
+        L"HELIOSAV_DISABLE_NATIVE_TRAY", value, static_cast<DWORD>(std::size(value)));
+    return length > 0 && length < std::size(value)
+        && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
+            || value[0] == L'y' || value[0] == L'Y');
+}
+
+bool EngineClientDisabled() {
+    wchar_t value[8]{};
+    const DWORD length = GetEnvironmentVariableW(
+        L"HELIOSAV_DISABLE_ENGINE_CLIENT", value, static_cast<DWORD>(std::size(value)));
+    return length > 0 && length < std::size(value)
+        && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
+            || value[0] == L'y' || value[0] == L'Y');
+}
+
+bool EngineProcessDisabled() {
+    wchar_t value[8]{};
+    const DWORD length = GetEnvironmentVariableW(
+        L"HELIOSAV_DISABLE_ENGINE_PROCESS", value, static_cast<DWORD>(std::size(value)));
+    return length > 0 && length < std::size(value)
+        && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
+            || value[0] == L'y' || value[0] == L'Y');
+}
+
+bool MinimalUiEnabled() {
+    wchar_t value[8]{};
+    const DWORD length = GetEnvironmentVariableW(
+        L"HELIOSAV_MINIMAL_UI", value, static_cast<DWORD>(std::size(value)));
+    return length > 0 && length < std::size(value)
+        && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
+            || value[0] == L'y' || value[0] == L'Y');
+}
+
+bool ScanPageDisabled() {
+    wchar_t value[8]{};
+    const DWORD length = GetEnvironmentVariableW(
+        L"HELIOSAV_DISABLE_SCAN_PAGE", value, static_cast<DWORD>(std::size(value)));
+    return length > 0 && length < std::size(value)
+        && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
+            || value[0] == L'y' || value[0] == L'Y');
+}
+
+size_t DiagnosticPageLimit(size_t fallback) {
+    wchar_t value[16]{};
+    const DWORD length = GetEnvironmentVariableW(
+        L"HELIOSAV_PAGE_LIMIT", value, static_cast<DWORD>(std::size(value)));
+    if (length == 0 || length >= std::size(value)) {
+        return fallback;
+    }
+    wchar_t* end = nullptr;
+    const unsigned long parsed = std::wcstoul(value, &end, 10);
+    if (end == value || parsed == 0) {
+        return fallback;
+    }
+    return std::min<size_t>(fallback, static_cast<size_t>(parsed));
+}
+
+std::wstring ExecutablePath() {
+    std::vector<wchar_t> buffer(32768);
+    const DWORD length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    if (length == 0 || length >= buffer.size()) {
+        return {};
+    }
+    return std::wstring(buffer.data(), length);
+}
+
+std::vector<std::wstring> PickFileSystemTargets(bool folders, bool image_only = false) {
+    std::vector<std::wstring> result;
+    winrt::com_ptr<IFileOpenDialog> dialog;
+    const HRESULT created = CoCreateInstance(
+        CLSID_FileOpenDialog,
+        nullptr,
+        CLSCTX_INPROC_SERVER,
+        __uuidof(IFileOpenDialog),
+        dialog.put_void());
+    if (FAILED(created)) {
+        return result;
+    }
+
+    DWORD options = 0;
+    if (FAILED(dialog->GetOptions(&options))) {
+        return result;
+    }
+    options |= FOS_FORCEFILESYSTEM;
+    if (folders) {
+        options |= FOS_PICKFOLDERS;
+    } else {
+        options |= FOS_ALLOWMULTISELECT | FOS_FILEMUSTEXIST;
+    }
+    dialog->SetOptions(options);
+
+    if (!folders) {
+        const COMDLG_FILTERSPEC filters[] = {
+            {L"All supported files", L"*.*"},
+            {L"Images", L"*.png;*.jpg;*.jpeg;*.bmp;*.gif"},
+        };
+        const COMDLG_FILTERSPEC image_filters[] = {
+            {L"Image files", L"*.png;*.jpg;*.jpeg;*.bmp;*.gif"},
+        };
+        dialog->SetFileTypes(
+            image_only ? static_cast<UINT>(std::size(image_filters)) : static_cast<UINT>(std::size(filters)),
+            image_only ? image_filters : filters);
+    }
+
+    HWND owner = GetActiveWindow();
+    if (!owner) {
+        owner = GetForegroundWindow();
+    }
+    if (dialog->Show(owner) != S_OK) {
+        return result;
+    }
+
+    auto append_item = [&result](IShellItem* item) {
+        if (!item) {
+            return;
+        }
+        PWSTR path = nullptr;
+        if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path) {
+            result.emplace_back(path);
+            CoTaskMemFree(path);
+        }
+    };
+
+    if (folders) {
+        winrt::com_ptr<IShellItem> item;
+        if (SUCCEEDED(dialog->GetResult(item.put()))) {
+            append_item(item.get());
+        }
+        return result;
+    }
+
+    winrt::com_ptr<IShellItemArray> items;
+    if (FAILED(dialog->GetResults(items.put()))) {
+        return result;
+    }
+    DWORD count = 0;
+    if (FAILED(items->GetCount(&count))) {
+        return result;
+    }
+    for (DWORD index = 0; index < count; ++index) {
+        winrt::com_ptr<IShellItem> item;
+        if (SUCCEEDED(items->GetItemAt(index, item.put()))) {
+            append_item(item.get());
+        }
+    }
+    return result;
+}
+
+std::vector<std::wstring> StartupScanTargets() {
+    std::vector<std::wstring> result;
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argv) {
+        return result;
+    }
+    for (int index = 1; index < argc; ++index) {
+        const std::wstring argument(argv[index] ? argv[index] : L"");
+        if (argument == L"--scan" && index + 1 < argc) {
+            result.emplace_back(argv[++index]);
+        } else if (argument.rfind(L"--scan=", 0) == 0 && argument.size() > 7) {
+            result.emplace_back(argument.substr(7));
+        }
+    }
+    LocalFree(argv);
+    return result;
+}
+
+bool SetUserRegistryString(const std::wstring& subkey, const std::wstring& value_name, const std::wstring& value) {
+    HKEY key = nullptr;
+    const LSTATUS opened = RegCreateKeyExW(
+        HKEY_CURRENT_USER,
+        subkey.c_str(),
+        0,
+        nullptr,
+        REG_OPTION_NON_VOLATILE,
+        KEY_SET_VALUE,
+        nullptr,
+        &key,
+        nullptr);
+    if (opened != ERROR_SUCCESS) {
+        return false;
+    }
+    const DWORD bytes = static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t));
+    const LSTATUS written = RegSetValueExW(
+        key,
+        value_name.empty() ? nullptr : value_name.c_str(),
+        0,
+        REG_SZ,
+        reinterpret_cast<const BYTE*>(value.c_str()),
+        bytes);
+    RegCloseKey(key);
+    return written == ERROR_SUCCESS;
+}
+
+bool ReadUserRegistryString(
+    const std::wstring& subkey,
+    const std::wstring& value_name,
+    std::wstring& value) {
+    HKEY key = nullptr;
+    if (RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            subkey.c_str(),
+            0,
+            KEY_QUERY_VALUE,
+            &key) != ERROR_SUCCESS) {
+        return false;
+    }
+    DWORD type = 0;
+    DWORD bytes = 0;
+    LSTATUS result = RegQueryValueExW(
+        key,
+        value_name.c_str(),
+        nullptr,
+        &type,
+        nullptr,
+        &bytes);
+    if (result != ERROR_SUCCESS
+        || (type != REG_SZ && type != REG_EXPAND_SZ)
+        || bytes == 0
+        || bytes % sizeof(wchar_t) != 0) {
+        RegCloseKey(key);
+        return false;
+    }
+    std::vector<wchar_t> buffer(bytes / sizeof(wchar_t) + 1, L'\0');
+    result = RegQueryValueExW(
+        key,
+        value_name.c_str(),
+        nullptr,
+        &type,
+        reinterpret_cast<BYTE*>(buffer.data()),
+        &bytes);
+    RegCloseKey(key);
+    if (result != ERROR_SUCCESS) {
+        return false;
+    }
+    value.assign(buffer.data());
+    return true;
+}
+
+bool SetUserRegistryDword(
+    const std::wstring& subkey,
+    const std::wstring& value_name,
+    DWORD value) {
+    HKEY key = nullptr;
+    const LSTATUS opened = RegCreateKeyExW(
+        HKEY_CURRENT_USER,
+        subkey.c_str(),
+        0,
+        nullptr,
+        REG_OPTION_NON_VOLATILE,
+        KEY_SET_VALUE,
+        nullptr,
+        &key,
+        nullptr);
+    if (opened != ERROR_SUCCESS) {
+        return false;
+    }
+    const LSTATUS written = RegSetValueExW(
+        key,
+        value_name.c_str(),
+        0,
+        REG_DWORD,
+        reinterpret_cast<const BYTE*>(&value),
+        sizeof(value));
+    RegCloseKey(key);
+    return written == ERROR_SUCCESS;
+}
+
+bool ReadUserRegistryDword(
+    const std::wstring& subkey,
+    const std::wstring& value_name,
+    DWORD& value) {
+    HKEY key = nullptr;
+    if (RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            subkey.c_str(),
+            0,
+            KEY_QUERY_VALUE,
+            &key) != ERROR_SUCCESS) {
+        return false;
+    }
+    DWORD type = 0;
+    DWORD bytes = sizeof(value);
+    const LSTATUS result = RegQueryValueExW(
+        key,
+        value_name.c_str(),
+        nullptr,
+        &type,
+        reinterpret_cast<BYTE*>(&value),
+        &bytes);
+    RegCloseKey(key);
+    return result == ERROR_SUCCESS && type == REG_DWORD && bytes == sizeof(value);
+}
+
+constexpr wchar_t kUiPreferencesKey[] = L"Software\\HeliosAV\\UI";
+
+void PersistUiPreferences(
+    UiStyle style,
+    UiLanguage language,
+    UiAccent accent,
+    const std::wstring& background_image,
+    const UiFeatureSettings& settings) {
+    // Preferences are user-scoped and deliberately contain no scan paths or
+    // sample data. Each write is best-effort; a locked/profile-less registry
+    // must not prevent the GUI from starting with in-memory defaults.
+    SetUserRegistryDword(kUiPreferencesKey, L"Style", static_cast<DWORD>(style));
+    SetUserRegistryDword(kUiPreferencesKey, L"Language", static_cast<DWORD>(language));
+    SetUserRegistryDword(kUiPreferencesKey, L"Accent", static_cast<DWORD>(accent));
+    SetUserRegistryString(kUiPreferencesKey, L"BackgroundImage", background_image);
+    SetUserRegistryDword(kUiPreferencesKey, L"YaraEnabled", settings.yara_enabled ? 1 : 0);
+    SetUserRegistryDword(kUiPreferencesKey, L"HeuristicEnabled", settings.heuristic_enabled ? 1 : 0);
+    SetUserRegistryDword(kUiPreferencesKey, L"AiEnabled", settings.ai_enabled ? 1 : 0);
+    SetUserRegistryDword(kUiPreferencesKey, L"SandboxEnabled", settings.sandbox_enabled ? 1 : 0);
+    SetUserRegistryDword(kUiPreferencesKey, L"CloudPlaceholderEnabled", settings.cloud_placeholder_enabled ? 1 : 0);
+    SetUserRegistryDword(kUiPreferencesKey, L"R3Enabled", settings.r3_enabled ? 1 : 0);
+    SetUserRegistryDword(kUiPreferencesKey, L"DriverEnabled", settings.driver_enabled ? 1 : 0);
+    SetUserRegistryDword(kUiPreferencesKey, L"NotificationsEnabled", settings.notifications_enabled ? 1 : 0);
+    SetUserRegistryDword(kUiPreferencesKey, L"TranslucentPanels", settings.translucent_panels ? 1 : 0);
+    SetUserRegistryDword(kUiPreferencesKey, L"TransparencyPercent", settings.transparency_percent);
+}
+
+void LoadUiPreferences(
+    UiStyle& style,
+    UiLanguage& language,
+    UiAccent& accent,
+    std::wstring& background_image,
+    UiFeatureSettings& settings) {
+    DWORD value = 0;
+    if (ReadUserRegistryDword(kUiPreferencesKey, L"Style", value)
+        && value <= static_cast<DWORD>(UiStyle::Rose)) {
+        style = static_cast<UiStyle>(value);
+    }
+    if (ReadUserRegistryDword(kUiPreferencesKey, L"Language", value)
+        && value <= static_cast<DWORD>(UiLanguage::Spanish)) {
+        language = static_cast<UiLanguage>(value);
+    }
+    if (ReadUserRegistryDword(kUiPreferencesKey, L"Accent", value)
+        && value <= static_cast<DWORD>(UiAccent::Violet)) {
+        accent = static_cast<UiAccent>(value);
+    }
+    ReadUserRegistryString(kUiPreferencesKey, L"BackgroundImage", background_image);
+
+    auto read_bool = [&](const wchar_t* name, bool& target) {
+        if (ReadUserRegistryDword(kUiPreferencesKey, name, value)) {
+            target = value != 0;
+        }
+    };
+    read_bool(L"YaraEnabled", settings.yara_enabled);
+    read_bool(L"HeuristicEnabled", settings.heuristic_enabled);
+    read_bool(L"AiEnabled", settings.ai_enabled);
+    read_bool(L"SandboxEnabled", settings.sandbox_enabled);
+    read_bool(L"CloudPlaceholderEnabled", settings.cloud_placeholder_enabled);
+    read_bool(L"R3Enabled", settings.r3_enabled);
+    read_bool(L"DriverEnabled", settings.driver_enabled);
+    read_bool(L"NotificationsEnabled", settings.notifications_enabled);
+    read_bool(L"TranslucentPanels", settings.translucent_panels);
+    if (ReadUserRegistryDword(kUiPreferencesKey, L"TransparencyPercent", value)) {
+        settings.transparency_percent = static_cast<uint8_t>(std::min<DWORD>(value, 55));
+    }
+}
+
+bool StartWithWindowsEnabled() {
+    HKEY key = nullptr;
+    if (RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+            0,
+            KEY_QUERY_VALUE,
+            &key) != ERROR_SUCCESS) {
+        return false;
+    }
+    DWORD type = 0;
+    DWORD bytes = 0;
+    const LSTATUS result = RegQueryValueExW(key, L"HeliosAV", nullptr, &type, nullptr, &bytes);
+    RegCloseKey(key);
+    return result == ERROR_SUCCESS && type == REG_SZ && bytes > sizeof(wchar_t);
+}
+
+bool SetStartWithWindows(bool enabled) {
+    constexpr wchar_t kRunKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    if (enabled) {
+        const std::wstring executable = ExecutablePath();
+        return !executable.empty()
+            && SetUserRegistryString(kRunKey, L"HeliosAV", L"\"" + executable + L"\"");
+    }
+    HKEY key = nullptr;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, kRunKey, 0, KEY_SET_VALUE, &key) != ERROR_SUCCESS) {
+        return true;
+    }
+    const LSTATUS removed = RegDeleteValueW(key, L"HeliosAV");
+    RegCloseKey(key);
+    return removed == ERROR_SUCCESS || removed == ERROR_FILE_NOT_FOUND;
+}
+
+bool RegisterExplorerScanMenu() {
+    const std::wstring executable = ExecutablePath();
+    if (executable.empty()) {
+        return false;
+    }
+    const std::wstring command = L"\"" + executable + L"\" --scan \"%1\"";
+    const std::wstring background_command = L"\"" + executable + L"\" --scan \"%V\"";
+    const std::pair<std::wstring, std::wstring> entries[] = {
+        {L"Software\\Classes\\*\\shell\\HeliosAVScan", command},
+        {L"Software\\Classes\\Directory\\shell\\HeliosAVScan", command},
+        {L"Software\\Classes\\Directory\\Background\\shell\\HeliosAVScan", background_command},
+    };
+    for (const auto& [key, value] : entries) {
+        if (!SetUserRegistryString(key, L"", L"Scan with HeliosAV")
+            || !SetUserRegistryString(key + L"\\command", L"", value)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool RemoveExplorerScanMenu() {
+    bool success = true;
+    const wchar_t* keys[] = {
+        L"Software\\Classes\\*\\shell\\HeliosAVScan",
+        L"Software\\Classes\\Directory\\shell\\HeliosAVScan",
+        L"Software\\Classes\\Directory\\Background\\shell\\HeliosAVScan",
+    };
+    for (const auto* key : keys) {
+        const LSTATUS removed = RegDeleteTreeW(HKEY_CURRENT_USER, key);
+        if (removed != ERROR_SUCCESS && removed != ERROR_FILE_NOT_FOUND) {
+            success = false;
+        }
+    }
+    return success;
+}
+
+std::wstring FileUri(const std::wstring& path) {
+    std::wstring normalized = path;
+    std::replace(normalized.begin(), normalized.end(), L'\\', L'/');
+    if (normalized.size() >= 2 && normalized[1] == L':') {
+        return L"file:///" + normalized;
+    }
+    return L"file://" + normalized;
+}
+
+media::Brush RootBackground(const ThemePalette& palette, const std::wstring& image_path) {
+    if (image_path.empty()) {
+        return Brush(palette.canvas);
+    }
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(image_path, error)) {
+        return Brush(palette.canvas);
+    }
+    try {
+        auto image = media::ImageBrush();
+        image.Stretch(media::Stretch::UniformToFill);
+        image.Opacity(palette.dark ? 0.24 : 0.34);
+        image.ImageSource(media::Imaging::BitmapImage(winrt::Windows::Foundation::Uri(FileUri(image_path))));
+        return image;
+    } catch (...) {
+        return Brush(palette.canvas);
+    }
+}
+
+controls::Border HeroCard(const UiStrings& strings, const ThemePalette& palette) {
+    auto hero = controls::Border();
+    // Soft gradient background (reference: light blue→white glass).
+    auto gradient = media::LinearGradientBrush();
+    auto stops = media::GradientStopCollection();
+    auto first = media::GradientStop();
+    // XIGUA 风格：暖色渐变（橙→淡黄→白色）作为英雄卡片主背景
+    first.Color(ColorOf(251, 191, 150));
+    first.Offset(0.0);
+    auto second = media::GradientStop();
+    second.Color(ColorOf(255, 245, 235));
+    second.Offset(1.0);
+    stops.Append(first);
+    stops.Append(second);
+    gradient.GradientStops(stops);
+    gradient.StartPoint(winrt::Windows::Foundation::Point{0, 0});
+    gradient.EndPoint(winrt::Windows::Foundation::Point{1, 1});
+    hero.Background(gradient);
+    hero.CornerRadius(xaml::CornerRadius{14, 14, 14, 14});
+    hero.Padding(Inset(24, 24, 24, 22));
+    hero.Margin(Inset(0, 0, 0, 16));
+    auto body = controls::StackPanel();
+    body.Spacing(7);
+    // Main hero text: "已保护您的计算机 N 天".
+    body.Children().Append(Text(HString(strings.dashboard_header), 28, win_text::FontWeights::Bold(), Brush(ColorOf(30, 64, 175))));
+    // Subtitle: 警告风格（运行时深度测试：显示防护未完全开启状态）
+    body.Children().Append(Text(L"驱动防护和基础防护需要同时开启", 14, win_text::FontWeights::Normal(), Brush(ColorOf(217, 119, 6))));
+    // Quick scan button.
+    auto scan_row = controls::StackPanel();
+    scan_row.Orientation(controls::Orientation::Horizontal);
+    scan_row.Spacing(12);
+    scan_row.Margin(Inset(0, 8, 0, 0));
+    auto quick_btn = controls::Button();
+    quick_btn.Content(winrt::box_value(HString(strings.quick_scan)));
+    quick_btn.CornerRadius(xaml::CornerRadius{8, 8, 8, 8});
+    quick_btn.Padding(Inset(16, 8, 16, 8));
+    quick_btn.Background(Brush(palette.primary));
+    quick_btn.Foreground(Brush(ColorOf(255, 255, 255)));
+    quick_btn.BorderThickness(Inset(0));
+    scan_row.Children().Append(quick_btn);
+    body.Children().Append(scan_row);
+    // Last scan / scan history row.
+    auto history_row = controls::StackPanel();
+    history_row.Orientation(controls::Orientation::Horizontal);
+    history_row.Spacing(8);
+    history_row.Margin(Inset(0, 4, 0, 0));
+    history_row.Children().Append(Text(HString(strings.last_scan_prefix), 12, win_text::FontWeights::Normal(), Brush(ColorOf(100, 116, 139))));
+    auto history_link = Text(HString(strings.scan_history), 12, win_text::FontWeights::SemiBold(), Brush(palette.primary));
+    history_row.Children().Append(history_link);
+    body.Children().Append(history_row);
+    hero.Child(body);
+    return hero;
+}
+
+std::vector<std::wstring> ProtectionDirectories() {
+    const std::wstring profile = UserProfile();
+    std::array<wchar_t, 32768> program_data_buffer{};
+    const DWORD program_data_length = GetEnvironmentVariableW(
+        L"ProgramData", program_data_buffer.data(), static_cast<DWORD>(program_data_buffer.size()));
+    const std::wstring program_data = program_data_length > 0
+        && program_data_length < program_data_buffer.size()
+        ? std::wstring(program_data_buffer.data(), program_data_length)
+        : L"C:\\ProgramData";
+    std::vector<std::wstring> directories = {
+        profile + L"\\Desktop",
+        profile + L"\\Downloads",
+        profile + L"\\Documents",
+        // These are common user-writable persistence locations. They are
+        // narrow paths instead of the whole AppData tree to keep R3 CPU use
+        // predictable while still covering shortcut/script droppers.
+        profile + L"\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup",
+        program_data + L"\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp",
+    };
+    // Temp is extremely noisy during application startup and package updates.
+    // It remains available as an explicit deployment opt-in.
+    wchar_t value[8]{};
+    const DWORD length = GetEnvironmentVariableW(
+        L"HELIOSAV_MONITOR_TEMP", value, static_cast<DWORD>(std::size(value)));
+    if (length > 0 && length < std::size(value)
+        && (value[0] == L'1' || value[0] == L'y' || value[0] == L'Y')) {
+        directories.push_back(profile + L"\\AppData\\Local\\Temp");
+    }
+    return directories;
+}
+
+bool StartProtectionMonitor(
+    const std::shared_ptr<ProtectionMonitor>& monitor,
+    const std::shared_ptr<EngineClient>& client) {
+    if (!monitor) {
+        return false;
+    }
+    const auto debounce_mutex = std::make_shared<std::mutex>();
+    const auto last_requests = std::make_shared<std::unordered_map<std::wstring, ULONGLONG>>();
+    return monitor->Start(ProtectionDirectories(), [client, debounce_mutex, last_requests](const std::wstring& path) {
+        if (path.empty()) {
+            return;
+        }
+        std::error_code file_error;
+        if (!std::filesystem::is_regular_file(path, file_error)) {
+            return;
+        }
+        const ULONGLONG now = GetTickCount64();
+        {
+            std::lock_guard lock(*debounce_mutex);
+            const auto existing = last_requests->find(path);
+            if (existing != last_requests->end() && now - existing->second < 1500) {
+                return;
+            }
+            (*last_requests)[path] = now;
+            if (last_requests->size() > 1024) {
+                for (auto it = last_requests->begin(); it != last_requests->end();) {
+                    if (now - it->second >= 10000) {
+                        it = last_requests->erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
+            }
+        }
+        if (client) {
+            client->RequestScan(
+                {path},
+                30000,
+                false,
+                true,
+                false,
+                true,
+                0.90f,
+                1024ULL * 1024ULL * 1024ULL,
+                true);
+        }
+    });
+}
+
+void RefreshStatistics(const std::shared_ptr<EngineUiState>& state) {
+    if (!state || !state->statistics) {
+        return;
+    }
+    state->statistics.Text(HString(
+        state->strings.files_processed + L": " + std::to_wstring(state->files_processed)
+        + L"    " + state->strings.threats + L": " + std::to_wstring(state->threat_count)
+        + L"    " + state->strings.errors + L": " + std::to_wstring(state->error_count)));
+}
+
+void SetProgressVisual(const std::shared_ptr<EngineUiState>& state, double percent) {
+    if (!state || !state->progress) {
+        return;
+    }
+    const double bounded = std::clamp(percent, 0.0, 100.0);
+    state->progress.Text(HString(
+        state->strings.scan_progress_label + L": "
+        + std::to_wstring(static_cast<uint32_t>(bounded)) + L"%"));
+}
+
+void SetProgressPending(const std::shared_ptr<EngineUiState>& state, const std::wstring& message) {
+    if (!state || !state->progress) {
+        return;
+    }
+    state->progress.Text(HString(message));
+}
+
+void UpdateScanIndicator(const std::shared_ptr<EngineUiState>& state) {
+    if (!state || !state->scan_indicator) {
+        return;
+    }
+    if (!state->scan_active) {
+        state->scan_indicator.Text(L"-");
+        return;
+    }
+    static constexpr std::array<const wchar_t*, 4> frames{L"-", L"\\", L"|", L"/"};
+    state->scan_indicator.Text(HString(
+        std::wstring(frames[state->scan_indicator_frame++ % frames.size()])
+        + L" " + state->strings.scanning_prefix));
+}
+
+void UpdateElapsedVisual(const std::shared_ptr<EngineUiState>& state) {
+    if (!state || !state->elapsed || state->scan_started_at.time_since_epoch().count() == 0) {
+        return;
+    }
+    UpdateScanIndicator(state);
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::steady_clock::now() - state->scan_started_at).count();
+    const auto minutes = seconds / 60;
+    const auto remainder = seconds % 60;
+    state->elapsed.Text(HString(
+        state->strings.scan_elapsed_label + L": "
+        + std::to_wstring(minutes) + L":"
+        + (remainder < 10 ? L"0" : L"") + std::to_wstring(remainder)));
+}
+
+void UpdateProgressDetails(const std::shared_ptr<EngineUiState>& state, uint32_t stage) {
+    if (!state || !state->progress_details) {
+        return;
+    }
+    state->progress_details.Text(HString(
+        state->strings.scan_files_label + L": "
+        + std::to_wstring(state->files_processed) + L"/"
+        + std::to_wstring(state->total_files) + L"    "
+        + state->strings.scan_stage_label + L": "
+        + std::to_wstring(stage)));
+}
+
+bool ThreatChecked(const controls::CheckBox& checkbox) {
+    if (!checkbox) {
+        return false;
+    }
+    const auto value = checkbox.IsChecked();
+    return value && value.Value();
+}
+
+std::wstring ThreatDescription(const std::wstring& path, const std::wstring& reason) {
+    if (reason.empty()) {
+        return path;
+    }
+    return path + L" - " + reason;
+}
+
+bool IsExpectedNonThreatStatus(const std::wstring& status) {
+    return status.empty()
+        || status == L"clean"
+        || status == L"Clean"
+        || status == L"Benign"
+        || status == L"Undetected";
+}
+
+bool IsSuspiciousStatus(const std::wstring& status) {
+    return status == L"suspicious" || status == L"Suspicious";
+}
+
+controls::CheckBox ThreatCheckBox(const std::wstring& path, const std::wstring& reason) {
+    auto checkbox = controls::CheckBox();
+    // 风格化行：标签（木马病毒/云端威胁等）+ 粗体红色名称 + 灰色路径
+    auto content_row = controls::StackPanel();
+    content_row.Orientation(controls::Orientation::Vertical);
+    content_row.Spacing(2);
+    auto top_row = controls::StackPanel();
+    top_row.Orientation(controls::Orientation::Horizontal);
+    top_row.Spacing(6);
+    // 占位小方（模拟复选框）
+    auto placeholder = controls::Border();
+    placeholder.Width(20);
+    placeholder.Height(20);
+    placeholder.CornerRadius(xaml::CornerRadius{4, 4, 4, 4});
+    placeholder.Background(Brush(ColorOf(226, 232, 240)));
+    placeholder.Margin(Inset(0, 0, 6, 0));
+    // 标签+名称行
+    auto tag_row = controls::StackPanel();
+    tag_row.Orientation(controls::Orientation::Horizontal);
+    tag_row.Spacing(6);
+    auto tag_text = Text(L"\u26A0", 11, win_text::FontWeights::SemiBold(), Brush(ColorOf(220, 38, 38)));
+    auto name_text = Text(HString(path), 13, win_text::FontWeights::SemiBold(), Brush(ColorOf(15, 23, 42)));
+    tag_row.Children().Append(tag_text);
+    tag_row.Children().Append(name_text);
+    top_row.Children().Append(placeholder);
+    top_row.Children().Append(tag_row);
+    content_row.Children().Append(top_row);
+    // 灰色路径小字
+    auto path_row = controls::StackPanel();
+    path_row.Orientation(controls::Orientation::Horizontal);
+    path_row.Margin(Inset(26, 0, 0, 0));
+    auto path_text = Text(HString(path), 11, win_text::FontWeights::Normal(), Brush(ColorOf(100, 116, 139)));
+    path_row.Children().Append(path_text);
+    content_row.Children().Append(path_row);
+    checkbox.Margin(Inset(0, 3, 0, 3));
+    checkbox.Content(winrt::box_value(content_row));
+    return checkbox;
+}
+
+void SetThreatEmptyState(
+    const std::shared_ptr<EngineUiState>& state,
+    bool scan_empty,
+    bool realtime_empty) {
+    if (!state) {
+        return;
+    }
+    if (state->scan_threats_empty) {
+        state->scan_threats_empty.Visibility(scan_empty ? xaml::Visibility::Visible : xaml::Visibility::Collapsed);
+    }
+    if (state->threats_empty) {
+        state->threats_empty.Visibility(realtime_empty ? xaml::Visibility::Visible : xaml::Visibility::Collapsed);
+    }
+}
+
+void AppendThreatResult(
+    const std::shared_ptr<EngineUiState>& state,
+    const EngineScanResponse& response,
+    bool realtime) {
+    if (!state || (!realtime && response.path.empty())) {
+        return;
+    }
+    const std::wstring display_path = response.path.empty()
+        ? state->strings.realtime_intercept_title
+        : response.path;
+    const std::wstring reason =
+        response.reason.empty() ? state->strings.malicious_result : response.reason;
+    auto& entries = realtime ? state->realtime_threat_entries : state->scan_threat_entries;
+    for (const auto& existing : entries) {
+        if (existing.path == display_path && existing.reason == reason) {
+            return;
+        }
+    }
+    auto checkbox = ThreatCheckBox(display_path, reason);
+    entries.push_back(EngineUiState::ThreatEntry{
+        realtime && response.path.empty() ? std::wstring{} : response.path,
+        reason,
+        checkbox,
+    });
+    if (realtime) {
+        if (state->threats) {
+            state->threats.Items().Append(checkbox);
+        }
+    } else if (state->scan_threats) {
+        state->scan_threats.Items().Append(checkbox);
+    }
+    SetThreatEmptyState(
+        state,
+        state->scan_threat_entries.empty(),
+        state->realtime_threat_entries.empty());
+    SyncScanSnapshot(state);
+}
+
+void AppendScanThreatResult(
+    const std::shared_ptr<EngineUiState>& state,
+    const EngineScanResponse& response) {
+    AppendThreatResult(state, response, false);
+}
+
+void AppendRealtimeThreatResult(
+    const std::shared_ptr<EngineUiState>& state,
+    const EngineScanResponse& response) {
+    AppendThreatResult(state, response, true);
+}
+
+std::wstring LocalizeChainStage(const std::wstring& stage, const UiStrings& strings) {
+    if (stage == L"intervene") return strings.attack_chain_stage_intervene;
+    if (stage == L"correlate") return strings.attack_chain_stage_correlate;
+    if (stage == L"observe") return strings.attack_chain_stage_observe;
+    return stage.empty() ? strings.attack_chain_stage_observe : stage;
+}
+
+std::wstring LocalizeChainStep(const std::wstring& label, const UiStrings& strings) {
+    if (label == L"file_write") return strings.attack_chain_step_file_write;
+    if (label == L"registry_write") return strings.attack_chain_step_registry_write;
+    if (label == L"process_create") return strings.attack_chain_step_process_create;
+    if (label == L"network_connect") return strings.attack_chain_step_network_connect;
+    if (label == L"suspicious_api_call") return strings.attack_chain_step_suspicious_api_call;
+    if (label == L"dns_query") return strings.attack_chain_step_dns_query;
+    if (label == L"process_inject") return strings.attack_chain_step_process_inject;
+    if (label == L"persistence_change") return strings.attack_chain_step_persistence_change;
+    if (label == L"credential_access") return strings.attack_chain_step_credential_access;
+    if (label == L"service_tampering") return strings.attack_chain_step_service_tampering;
+    if (label == L"backup_deletion") return strings.attack_chain_step_backup_deletion;
+    if (label == L"ransomware_encryption") return strings.attack_chain_step_ransomware_encryption;
+    if (label == L"suspicious_persistence") return strings.attack_chain_step_suspicious_persistence;
+    if (label == L"suspicious_module_load") return strings.attack_chain_step_suspicious_module_load;
+    return label;
+}
+
+xaml::UIElement AttackChainRow(
+    const EngineAttackChain& chain,
+    const UiStrings& strings,
+    const ThemePalette& palette) {
+    auto panel = controls::StackPanel();
+    panel.Spacing(6);
+    auto header = controls::StackPanel();
+    header.Orientation(controls::Orientation::Horizontal);
+    header.Spacing(10);
+    auto title = Text(HString(chain.chain), 15, win_text::FontWeights::SemiBold(), Brush(palette.text));
+    title.VerticalAlignment(xaml::VerticalAlignment::Center);
+    header.Children().Append(title);
+    auto stage = Text(
+        HString(LocalizeChainStage(chain.stage, strings)),
+        12,
+        win_text::FontWeights::Normal(),
+        Brush(chain.stage == L"intervene" ? palette.primary : palette.muted));
+    stage.VerticalAlignment(xaml::VerticalAlignment::Center);
+    header.Children().Append(stage);
+    const std::wstring match_tag =
+        chain.tolerant ? strings.attack_chain_matched_tolerant : strings.attack_chain_matched_strict;
+    auto match = Text(HString(match_tag), 12, win_text::FontWeights::Normal(), Brush(palette.muted));
+    match.VerticalAlignment(xaml::VerticalAlignment::Center);
+    header.Children().Append(match);
+    panel.Children().Append(header);
+
+    std::wstring steps_text;
+    for (size_t index = 0; index < chain.step_labels.size(); ++index) {
+        if (index > 0) {
+            steps_text += L"  \u2192  ";
+        }
+        steps_text += std::to_wstring(index + 1)
+            + L". " + LocalizeChainStep(chain.step_labels[index], strings);
+    }
+    panel.Children().Append(Text(
+        HString(steps_text.empty() ? strings.attack_chain_empty : steps_text),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    auto card = Card(panel, palette);
+    card.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
+    return card;
+}
+
+void SetAttackChainEmptyState(const std::shared_ptr<EngineUiState>& state) {
+    if (!state) {
+        return;
+    }
+    if (state->attack_chain_empty) {
+        state->attack_chain_empty.Visibility(
+            state->attack_chain_entries.empty()
+                ? xaml::Visibility::Visible
+                : xaml::Visibility::Collapsed);
+    }
+}
+
+void RebuildAttackChainViews(const std::shared_ptr<EngineUiState>& state) {
+    if (!state) {
+        return;
+    }
+    if (state->attack_chain) {
+        state->attack_chain.Items().Clear();
+    }
+    for (const auto& entry : state->attack_chain_entries) {
+        if (state->attack_chain && entry.row) {
+            state->attack_chain.Items().Append(entry.row);
+        }
+    }
+    SetAttackChainEmptyState(state);
+}
+
+void AppendAttackChainEntry(
+    const std::shared_ptr<EngineUiState>& state,
+    const EngineAttackChain& chain) {
+    if (!state || chain.chain.empty()) {
+        return;
+    }
+    for (const auto& existing : state->attack_chain_entries) {
+        // The same chain at the same correlation stage is the same evidence;
+        // repeat suspensions of an identical chain add nothing to the page.
+        if (existing.chain.chain == chain.chain && existing.chain.stage == chain.stage) {
+            return;
+        }
+    }
+    EngineAttackChain copy = chain;
+    const auto row = AttackChainRow(copy, state->strings, state->palette);
+    state->attack_chain_entries.push_back({std::move(copy), row});
+    if (state->attack_chain) {
+        state->attack_chain.Items().Append(row);
+    }
+    SetAttackChainEmptyState(state);
+}
+
+void AppendAttackChains(
+    const std::shared_ptr<EngineUiState>& state,
+    const EngineScanResponse& response) {
+    if (!state || response.attack_chains.empty()) {
+        return;
+    }
+    for (const auto& chain : response.attack_chains) {
+        AppendAttackChainEntry(state, chain);
+    }
+    SyncScanSnapshot(state);
+}
+
+void ClearAttackChainViews(const std::shared_ptr<EngineUiState>& state) {
+    if (!state) {
+        return;
+    }
+    state->attack_chain_entries.clear();
+    RebuildAttackChainViews(state);
+    SyncScanSnapshot(state);
+}
+
+enum class ThreatListKind {
+    Scan,
+    Realtime,
+};
+
+void RebuildThreatViews(const std::shared_ptr<EngineUiState>& state);
+
+size_t SubmitSelectedThreatAction(
+    const std::shared_ptr<EngineUiState>& state,
+    const std::shared_ptr<EngineClient>& client,
+    bool allow,
+    ThreatListKind list_kind) {
+    if (!state) {
+        return 0;
+    }
+    if (!client) {
+        AppendActivity(state, HString(state->strings.engine_waiting));
+        return 0;
+    }
+    size_t submitted = 0;
+    auto& entries = list_kind == ThreatListKind::Scan
+        ? state->scan_threat_entries
+        : state->realtime_threat_entries;
+    std::vector<std::wstring> allowed_paths;
+    for (auto& entry : entries) {
+        if (!ThreatChecked(entry.checkbox)) {
+            continue;
+        }
+        if (entry.path.empty()) {
+            if (entry.checkbox) entry.checkbox.IsChecked(false);
+            continue;
+        }
+if (allow) {
+            client->RequestFileAllow(entry.path);
+            client->RequestAllowlistAdd(entry.path);
+            allowed_paths.push_back(entry.path);
+        } else {
+            client->RequestFileQuarantine(entry.path, entry.reason);
+        }
+        if (entry.checkbox) entry.checkbox.IsChecked(false);
+        ++submitted;
+    }
+    if (allow && !allowed_paths.empty()) {
+        entries.erase(
+            std::remove_if(
+                entries.begin(),
+                entries.end(),
+                [&allowed_paths](const EngineUiState::ThreatEntry& entry) {
+                    return std::find(
+                               allowed_paths.begin(),
+                               allowed_paths.end(),
+                               entry.path)
+                        != allowed_paths.end();
+                }),
+            entries.end());
+        RebuildThreatViews(state);
+        SyncScanSnapshot(state);
+    }
+    AppendActivity(
+        state,
+        HString(
+            (allow
+                 ? state->strings.selected_threats_allow_requested
+                 : state->strings.selected_threats_clear_requested)
+            + std::to_wstring(submitted)));
+    if (submitted == 0) {
+        AppendActivity(state, HString(state->strings.selected_threat_action_empty));
+    }
+    return submitted;
+}
+
+void RebuildThreatViews(const std::shared_ptr<EngineUiState>& state) {
+    if (!state) {
+        return;
+    }
+    if (state->scan_threats) {
+        state->scan_threats.Items().Clear();
+    }
+    if (state->threats) {
+        state->threats.Items().Clear();
+    }
+    for (auto& entry : state->scan_threat_entries) {
+        if (state->scan_threats && entry.checkbox) {
+            state->scan_threats.Items().Append(entry.checkbox);
+        }
+    }
+    for (auto& entry : state->realtime_threat_entries) {
+        if (state->threats && entry.checkbox) {
+            state->threats.Items().Append(entry.checkbox);
+        }
+    }
+    SetThreatEmptyState(
+        state,
+        state->scan_threat_entries.empty(),
+        state->realtime_threat_entries.empty());
+}
+
+void RemoveThreatEntryByPath(
+    const std::shared_ptr<EngineUiState>& state,
+    const std::wstring& path) {
+    if (!state || path.empty()) {
+        return;
+    }
+    state->scan_threat_entries.erase(
+        std::remove_if(
+            state->scan_threat_entries.begin(),
+            state->scan_threat_entries.end(),
+            [&path](const EngineUiState::ThreatEntry& entry) {
+                return entry.path == path;
+            }),
+        state->scan_threat_entries.end());
+    state->realtime_threat_entries.erase(
+        std::remove_if(
+            state->realtime_threat_entries.begin(),
+            state->realtime_threat_entries.end(),
+            [&path](const EngineUiState::ThreatEntry& entry) {
+                return entry.path == path;
+            }),
+        state->realtime_threat_entries.end());
+    RebuildThreatViews(state);
+}
+
+std::wstring QuarantineDescription(const EngineQuarantineItem& item) {
+    std::wstring text = item.original_path.empty() ? item.id : item.original_path;
+    if (!item.status.empty()) {
+        text += L"  [" + item.status + L"]";
+    }
+    if (!item.id.empty()) {
+        text += L"  #" + item.id;
+    }
+    return text;
+}
+
+controls::CheckBox QuarantineCheckBox(const EngineQuarantineItem& item) {
+    auto checkbox = controls::CheckBox();
+    checkbox.Content(winrt::box_value(HString(QuarantineDescription(item))));
+    checkbox.Margin(Inset(0, 2, 0, 2));
+    return checkbox;
+}
+
+void SetQuarantineEmptyState(const std::shared_ptr<EngineUiState>& state, bool empty) {
+    if (state && state->quarantine_empty) {
+        state->quarantine_empty.Visibility(empty ? xaml::Visibility::Visible : xaml::Visibility::Collapsed);
+    }
+}
+
+void RebuildQuarantineView(const std::shared_ptr<EngineUiState>& state) {
+    if (!state) {
+        return;
+    }
+    if (state->quarantine) {
+        state->quarantine.Items().Clear();
+        for (auto& entry : state->quarantine_entries) {
+            if (entry.checkbox) {
+                state->quarantine.Items().Append(entry.checkbox);
+            }
+        }
+    }
+    SetQuarantineEmptyState(state, state->quarantine_entries.empty());
+}
+
+void UpsertQuarantineItem(
+    const std::shared_ptr<EngineUiState>& state,
+    const EngineQuarantineItem& item) {
+    if (!state || item.id.empty()) {
+        return;
+    }
+    if (!item.status.empty() && item.status != L"active") {
+        state->quarantine_entries.erase(
+            std::remove_if(
+                state->quarantine_entries.begin(),
+                state->quarantine_entries.end(),
+                [&item](const EngineUiState::QuarantineEntry& entry) {
+                    return entry.id == item.id;
+                }),
+            state->quarantine_entries.end());
+        RebuildQuarantineView(state);
+        return;
+    }
+    auto existing = std::find_if(
+        state->quarantine_entries.begin(),
+        state->quarantine_entries.end(),
+        [&item](const EngineUiState::QuarantineEntry& entry) {
+            return entry.id == item.id;
+        });
+    if (existing != state->quarantine_entries.end()) {
+        existing->original_path = item.original_path;
+        existing->quarantine_path = item.quarantine_path;
+        existing->status = item.status;
+        if (existing->checkbox) {
+            existing->checkbox.Content(winrt::box_value(HString(QuarantineDescription(item))));
+        }
+    } else {
+        state->quarantine_entries.push_back(EngineUiState::QuarantineEntry{
+            item.id,
+            item.original_path,
+            item.quarantine_path,
+            item.status,
+            QuarantineCheckBox(item),
+        });
+    }
+    RebuildQuarantineView(state);
+}
+
+void ReplaceQuarantineItems(
+    const std::shared_ptr<EngineUiState>& state,
+    const std::vector<EngineQuarantineItem>& items) {
+    if (!state) {
+        return;
+    }
+    state->quarantine_entries.clear();
+    for (const auto& item : items) {
+        if (item.id.empty()) {
+            continue;
+        }
+        state->quarantine_entries.push_back(EngineUiState::QuarantineEntry{
+            item.id,
+            item.original_path,
+            item.quarantine_path,
+            item.status,
+            QuarantineCheckBox(item),
+        });
+    }
+    RebuildQuarantineView(state);
+}
+
+size_t SubmitSelectedQuarantineAction(
+    const std::shared_ptr<EngineUiState>& state,
+    const std::shared_ptr<EngineClient>& client,
+    bool restore) {
+    if (!state) {
+        return 0;
+    }
+    if (!client) {
+        AppendActivity(state, HString(state->strings.engine_waiting));
+        return 0;
+    }
+    size_t submitted = 0;
+    for (auto& entry : state->quarantine_entries) {
+        if (!ThreatChecked(entry.checkbox)) {
+            continue;
+        }
+        if (restore) {
+            client->RequestQuarantineRestore(entry.id);
+        } else {
+            client->RequestQuarantineDelete(entry.id);
+        }
+        entry.checkbox.IsChecked(false);
+        ++submitted;
+    }
+    if (submitted == 0) {
+        AppendActivity(state, HString(state->strings.quarantine_action_empty));
+    } else {
+        AppendActivity(
+            state,
+            HString(
+                (restore
+                     ? state->strings.restore_selected_quarantine_requested
+                     : state->strings.delete_selected_quarantine_requested)
+                + std::to_wstring(submitted)));
+    }
+    return submitted;
+}
+
+void ClearThreatViews(const std::shared_ptr<EngineUiState>& state) {
+    if (!state) {
+        return;
+    }
+    if (state->scan_threats) {
+        state->scan_threats.Items().Clear();
+    }
+    if (state->threats) {
+        state->threats.Items().Clear();
+    }
+    state->scan_threat_entries.clear();
+    state->realtime_threat_entries.clear();
+    SetThreatEmptyState(state, true, true);
+    SyncScanSnapshot(state);
+}
+
+void ClearScanThreatViews(const std::shared_ptr<EngineUiState>& state) {
+    if (!state) {
+        return;
+    }
+    if (state->scan_threats) {
+        state->scan_threats.Items().Clear();
+    }
+    state->scan_threat_entries.clear();
+    SetThreatEmptyState(state, true, state->realtime_threat_entries.empty());
+    SyncScanSnapshot(state);
+}
+
+std::wstring SandboxAnalysisDescription(
+    const EngineScanResponse& response,
+    const UiStrings& strings) {
+    if (response.sandbox_backend.empty()) {
+        return strings.sandbox_analysis + L": " + strings.not_configured;
+    }
+    std::wstring text = strings.sandbox_analysis + L": " + response.sandbox_backend;
+    if (!response.sandbox_status.empty()) {
+        text += L" | " + strings.sandbox_status_label + L"=" + response.sandbox_status;
+    }
+    text += L" | " + strings.sandbox_snapshots_label + L"="
+        + std::to_wstring(response.sandbox_snapshot_rounds);
+    text += L" (triggered=" + std::to_wstring(response.sandbox_triggered_snapshots) + L")";
+    text += L" | " + strings.sandbox_candidates_label + L"="
+        + std::to_wstring(response.sandbox_candidate_images);
+    text += L" | " + strings.sandbox_entry_points_label + L"="
+        + std::to_wstring(response.sandbox_recovered_entry_points);
+    text += L" | " + strings.sandbox_memory_label + L"="
+        + std::to_wstring(response.sandbox_bytes_captured / (1024ULL * 1024ULL)) + L" MiB";
+    if (response.sandbox_timed_out || response.timed_out) {
+        text += L" | timeout";
+    }
+    if (response.sandbox_snapshot_truncated) {
+        text += L" | truncated";
+    }
+    if (!response.sandbox_notes.empty()) {
+        text += L" | " + response.sandbox_notes.front();
+    }
+    return text;
+}
+
+void UpdateSandboxAnalysis(
+    const std::shared_ptr<EngineUiState>& state,
+    const EngineScanResponse& response) {
+    if (state && !response.sandbox_backend.empty()) {
+        const auto summary = SandboxAnalysisDescription(response, state->strings);
+        state->last_sandbox_response = std::make_shared<EngineScanResponse>(response);
+        if (state->sandbox_analysis) {
+            state->sandbox_analysis.Text(HString(summary));
+        }
+        if (state->snapshot) {
+            state->snapshot->sandbox_analysis = summary;
+        }
+    }
+}
+
+controls::StackPanel SectionHeading(
+    const winrt::hstring& title,
+    const winrt::hstring& subtitle,
+    const ThemePalette& palette) {
+    auto panel = controls::StackPanel();
+    panel.Spacing(6);
+    panel.Margin(Inset(0, 0, 0, 18));
+    panel.Children().Append(Text(title, 21, win_text::FontWeights::SemiBold(), Brush(palette.text)));
+    panel.Children().Append(Text(subtitle, 14, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    return panel;
+}
+
+controls::Border StatCard(
+    const winrt::hstring& label,
+    const winrt::hstring& value,
+    const ThemePalette& palette) {
+    auto body = controls::StackPanel();
+    body.Spacing(5);
+    body.Children().Append(Text(label, 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    body.Children().Append(Text(value, 25, win_text::FontWeights::Bold(), Brush(palette.text)));
+    return Card(body, palette);
+}
+
+controls::Grid ThreeColumnGrid() {
+    auto grid = controls::Grid();
+    for (int i = 0; i < 3; ++i) {
+        auto column = controls::ColumnDefinition();
+        column.Width(xaml::GridLengthHelper::FromValueAndType(1, xaml::GridUnitType::Star));
+        grid.ColumnDefinitions().Append(column);
+    }
+    return grid;
+}
+
+void PutInColumn(xaml::FrameworkElement const& element, int32_t column, const controls::Grid& grid) {
+    controls::Grid::SetColumn(element, column);
+    grid.Children().Append(element);
+}
+
+void ConfigureEngineCallbacks(
+    const std::shared_ptr<EngineClient>& client,
+    const std::shared_ptr<EngineUiState>& state,
+    EngineClient::RealtimeThreatHandler realtime_threat_handler,
+    std::function<void(const EngineScanResponse&)> sandbox_analysis_handler,
+    const std::shared_ptr<UiFeatureSettings>& feature_state,
+    std::function<void(const UiFeatureSettings&)> on_feature_settings_changed) {
+    if (!client || !state) {
+        return;
+    }
+
+    client->SetDriverAvailabilityHandler(
+        [state, feature_state, on_feature_settings_changed](bool available, const std::wstring& message) {
+            RunUiSafely(L"Driver availability callback", [state, feature_state, on_feature_settings_changed, available, message] {
+                if (available || !feature_state) {
+                    return;
+                }
+                feature_state->driver_enabled = false;
+                if (on_feature_settings_changed) {
+                    on_feature_settings_changed(*feature_state);
+                }
+                if (state->status) {
+                    state->status.Text(HString(state->strings.driver_unavailable));
+                }
+                AppendActivity(state, HString(message));
+            });
+        });
+    client->SetConnectionHandler([state, client](bool connected) {
+        RunUiSafely(L"IPC connection callback", [state, client, connected] {
+            const bool was_connected = state->engine_connected;
+            if (!connected && was_connected) {
+                ++state->engine_disconnects;
+            }
+            state->engine_connected = connected;
+            SyncScanSnapshot(state);
+            if (state->connection) {
+                state->connection.Text(connected ? HString(state->strings.engine_connected) : HString(state->strings.engine_disconnected));
+            }
+            if (state->status) {
+                state->status.Text(connected ? HString(state->strings.engine_ready) : HString(state->strings.engine_waiting));
+            }
+            if (!connected && state->scan_active) {
+                // A closed pipe is the authoritative end of the engine
+                // session. Converge the UI immediately instead of leaving a
+                // scan spinner alive after the child process has exited.
+                state->scan_active = false;
+                SyncScanSnapshot(state);
+                if (state->scan_timer) {
+                    state->scan_timer.Stop();
+                }
+                UpdateScanIndicator(state);
+                SetProgressPending(state, state->strings.engine_waiting);
+                if (state->scan_status) {
+                    state->scan_status.Text(HString(state->strings.engine_disconnected));
+                }
+            }
+            AppendActivity(state, connected ? HString(state->strings.ipc_connected) : HString(state->strings.ipc_disconnected));
+            if (connected && client) {
+                client->RequestQuarantineList(false);
+            }
+        });
+    });
+    client->SetErrorHandler([state](const std::wstring& message) {
+        RunUiSafely(L"IPC error callback", [state, message] {
+            RememberEngineError(state, message);
+            if (state->status) {
+                state->status.Text(HString(message));
+            }
+            const bool request_was_not_sent =
+                message.find(L"request") != std::wstring::npos
+                || message.find(L"queued") != std::wstring::npos
+                || message.find(L"queue") != std::wstring::npos
+                || message.find(L"already") != std::wstring::npos
+                || message.find(L"not connected") != std::wstring::npos
+                || message.find(L"No scan path") != std::wstring::npos;
+            if (request_was_not_sent && state->scan_active) {
+                state->scan_active = false;
+                SyncScanSnapshot(state);
+                if (state->scan_timer) {
+                    state->scan_timer.Stop();
+                }
+                UpdateScanIndicator(state);
+                SetProgressPending(state, state->strings.no_scan);
+                if (state->scan_status) {
+                    state->scan_status.Text(HString(message));
+                }
+            }
+            AppendActivity(state, HString(state->strings.engine_error_prefix + message));
+        });
+    });
+    client->SetProgressHandler([state](const EngineScanProgress& progress) {
+        RunUiSafely(L"Scan progress callback", [state, progress] {
+            const bool enumeration_update = progress.stage == 0
+                && !progress.path.empty()
+                && !progress.completed
+                && !progress.batch_completed
+                && progress.total_files > 0
+                && progress.processed_files == 0;
+            const bool batch_started = !progress.batch_completed
+                && !progress.completed
+                && progress.path.empty()
+                && progress.total_files > 0;
+            if (!progress.batch_completed && !state->scan_active) {
+                state->scan_active = true;
+                state->scan_started_at = std::chrono::steady_clock::now();
+                state->total_files = progress.total_files;
+                state->files_processed = 0;
+                UpdateScanIndicator(state);
+                if (state->scan_timer) state->scan_timer.Start();
+            }
+            if (progress.total_files > 0) {
+                state->total_files = progress.total_files;
+            }
+            if (batch_started || progress.batch_completed || progress.processed_files > state->files_processed) {
+                state->files_processed = progress.processed_files;
+            }
+            state->threat_count = progress.threat_count;
+            state->error_count = progress.error_count;
+            SyncScanSnapshot(state);
+            RefreshStatistics(state);
+
+            if (progress.batch_completed) {
+                state->scan_active = false;
+                SyncScanSnapshot(state);
+                if (state->scan_timer) state->scan_timer.Stop();
+                UpdateScanIndicator(state);
+                SetProgressVisual(state, 100.0);
+            } else if (progress.total_files > 0) {
+                const double value = std::min(
+                    100.0,
+                    100.0 * static_cast<double>(progress.processed_files)
+                        / static_cast<double>(progress.total_files));
+                if (enumeration_update || (progress.processed_files == 0 && progress.stage == 0)) {
+                    SetProgressPending(
+                        state,
+                        state->strings.scan_enumerating + L" "
+                            + std::to_wstring(progress.total_files) + L" "
+                            + state->strings.scan_files_label);
+                } else {
+                    SetProgressVisual(state, value);
+                }
+            } else {
+                SetProgressPending(state, state->strings.scan_enumerating);
+            }
+            UpdateProgressDetails(state, progress.stage);
+            UpdateElapsedVisual(state);
+            if (state->scan_status) {
+                if (progress.batch_completed) {
+                    state->scan_status.Text(progress.cancelled
+                        ? HString(state->strings.scan_cancelled)
+                        : HString(state->strings.scan_completed));
+                } else if (enumeration_update) {
+                    state->scan_status.Text(HString(state->strings.scan_enumerating + L" " + progress.path));
+                } else if (!progress.path.empty()) {
+                    state->scan_status.Text(HString(state->strings.scanning_prefix + progress.path));
+                }
+            }
+            if (!progress.error.empty()) {
+                RememberEngineError(state, progress.error);
+                AppendActivity(state, HString(state->strings.scan_progress_error_prefix + progress.error));
+            }
+            if (progress.batch_completed) {
+                AppendActivity(state, progress.cancelled
+                    ? HString(state->strings.scan_cancelled + L".")
+                    : HString(state->strings.scan_batch_completed));
+            }
+        });
+    });
+    client->SetResponseHandler([state, sandbox_analysis_handler](const EngineScanResponse& response) {
+        RunUiSafely(L"Scan response callback", [state, response, sandbox_analysis_handler] {
+            UpdateSandboxAnalysis(state, response);
+            if (sandbox_analysis_handler && !response.sandbox_backend.empty()) {
+                sandbox_analysis_handler(response);
+            }
+if (response.malicious) {
+                ++state->threat_count;
+                const std::wstring reason = response.reason.empty() ? state->strings.malicious_result : response.reason;
+                const std::wstring item = ThreatDescription(response.path, reason);
+                AppendScanThreatResult(state, response);
+                AppendActivity(state, HString(state->strings.threat_prefix + item));
+            }
+            // Attack chains ride on the scan result for both malicious and
+            // suspicious verdicts (tolerant correlation chains are suspicious
+            // until corroborated into an intervention).
+            AppendAttackChains(state, response);
+            if (!response.status.empty() && !response.malicious && response.error.empty()) {
+const std::wstring detail = response.path + L" - " + response.status
+                    + (response.reason.empty() ? L"" : L": " + response.reason);
+                if (IsSuspiciousStatus(response.status)) {
+                    AppendActivity(state, HString(L"Suspicious: " + detail));
+                } else if (!IsExpectedNonThreatStatus(response.status)) {
+                    AppendActivity(state, HString(state->strings.scan_error_prefix + detail));
+                }
+            }
+            if (!response.error.empty()) {
+                ++state->error_count;
+                RememberEngineError(state, response.error);
+                AppendActivity(state, HString(state->strings.scan_error_prefix + response.path + L" - " + response.error));
+            }
+            RefreshStatistics(state);
+            SyncScanSnapshot(state);
+        });
+    });
+    client->SetConfigHandler([state](bool success, const std::wstring& message) {
+        RunUiSafely(L"Config callback", [state, success, message] {
+        const std::wstring prefix = success ? state->strings.config_reload_success : state->strings.config_reload_failure;
+        if (state->status) {
+            state->status.Text(HString(prefix + message));
+        }
+        AppendActivity(state, HString(prefix + message));
+        });
+    });
+    client->SetQuarantineHandler([state](const EngineQuarantineResponse& response) {
+        RunUiSafely(L"Quarantine callback", [state, response] {
+            if (response.action == L"list") {
+                ReplaceQuarantineItems(state, response.records);
+            } else if (response.action == L"quarantine") {
+                for (const auto& item : response.records) {
+                    UpsertQuarantineItem(state, item);
+                    RemoveThreatEntryByPath(state, item.original_path);
+                }
+            } else if (response.action == L"restore" || response.action == L"delete") {
+                for (const auto& item : response.records) {
+                    UpsertQuarantineItem(state, item);
+                }
+            }
+            if (!response.message.empty()) {
+                AppendActivity(state, HString(response.message));
+            }
+        });
+    });
+    client->SetModelValidationHandler([state, client](const EngineModelValidationResponse& response) {
+        RunUiSafely(L"AI model validation callback", [state, client, response] {
+            std::wstring detail = response.usable
+                ? state->strings.ai_model_validation_passed
+                : state->strings.ai_model_validation_failed;
+            if (!response.path.empty()) {
+                detail += L": " + response.path;
+            }
+            if (response.feature_dim > 0) {
+                detail += L" feature_dim=" + std::to_wstring(response.feature_dim);
+            }
+            if (response.input_count > 0 || response.output_count > 0) {
+                detail += L" io=" + std::to_wstring(response.input_count)
+                    + L"/" + std::to_wstring(response.output_count);
+            }
+            if (!response.errors.empty()) {
+                detail += L" - " + response.errors.front();
+            } else if (!response.warnings.empty()) {
+                detail += L" - " + response.warnings.front();
+            }
+            if (state->status) {
+                state->status.Text(HString(detail));
+            }
+            AppendActivity(state, HString(detail));
+            for (const auto& warning : response.warnings) {
+                AppendActivity(state, HString(L"ONNX warning: " + warning));
+            }
+            for (const auto& error : response.errors) {
+                AppendActivity(state, HString(L"ONNX error: " + error));
+            }
+            if (response.usable && !state->pending_model_import_path.empty()) {
+                const auto import_path = state->pending_model_import_path;
+                state->pending_model_import_path.clear();
+                if (client) {
+                    client->RequestModelImport(import_path);
+                    if (state->status) {
+                        state->status.Text(HString(state->strings.ai_model_importing_validated));
+                    }
+                    AppendActivity(state, HString(state->strings.ai_model_importing_validated));
+                }
+            } else if (!response.usable) {
+                state->pending_model_import_path.clear();
+            }
+        });
+    });
+    client->SetRealtimeThreatHandler(
+        [state, realtime_threat_handler = std::move(realtime_threat_handler)](
+            const EngineScanResponse& response) {
+            RunUiSafely(L"Realtime threat callback", [state, realtime_threat_handler, response] {
+                if (response.kernel_event_overflow) {
+                    state->kernel_events_dropped += response.kernel_events_dropped;
+                    const auto message = state->strings.engine_error_prefix
+                        + L"kernel event ring overflow: "
+                        + std::to_wstring(response.kernel_events_dropped)
+                        + L" event(s) dropped";
+                    RememberEngineError(state, message);
+                    AppendActivity(state, HString(message));
+                    if (state->status) {
+                        state->status.Text(HString(message));
+                    }
+                    return;
+                }
+                if (response.realtime_event && !response.realtime_blocked) {
+                    if (!response.reason.empty()) {
+                        AppendActivity(state, HString(response.reason));
+                    }
+                    SyncScanSnapshot(state);
+                    return;
+                }
+                if (response.malicious && response.realtime_blocked) {
+                    AppendRealtimeThreatResult(state, response);
+                    AppendActivity(
+                        state,
+                        HString(
+                            state->strings.threat_prefix
+                            + ThreatDescription(response.path, response.reason)));
+                }
+                SyncScanSnapshot(state);
+                if (realtime_threat_handler) {
+                    realtime_threat_handler(response);
+                }
+            });
+        });
+}
+
+} // namespace
+
+App::App() {
+    NotifyWinUiStage(L"App::App entered");
+    // WinUI promotes exceptions that escape an event delegate to a stowed
+    // exception (0xC000027B), which otherwise terminates the desktop process
+    // without leaving a useful application log. Record the HRESULT/message
+    // and mark it handled so the affected interaction cannot kill the GUI.
+    UnhandledException([this](auto const&, auto const& args) {
+        try {
+            const auto error = args.Exception();
+            NotifyWinUiStage(
+                L"WinUI unhandled exception 0x"
+                + std::to_wstring(static_cast<uint32_t>(error.value))
+                + L": " + std::wstring(args.Message().c_str()));
+        } catch (...) {
+            NotifyWinUiStage(L"WinUI unhandled exception: unable to read exception details");
+        }
+        try {
+            args.Handled(true);
+        } catch (...) {
+            // If XAML is already tearing down, there is no safe recovery path.
+        }
+    });
+    NotifyWinUiStage(L"App::App completed");
+}
+
+App::~App() {
+    NotifyWinUiStage(L"App::~App entered");
+    PersistUiPreferences(
+        m_style,
+        m_language,
+        m_accent,
+        m_background_image,
+        m_feature_settings);
+    if (m_protection_monitor) {
+        m_protection_monitor->Stop();
+    }
+    if (m_engine_client) {
+        m_engine_client->Stop();
+    }
+    if (m_engine_process) {
+        m_engine_process->Stop();
+    }
+    NotifyWinUiStage(L"App::~App completed");
+}
+
+void App::OnLaunched(winrt::Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
+    NotifyWinUiLaunched();
+    try {
+        NotifyWinUiStage(L"OnLaunched: detecting language");
+        m_language = DetectSystemLanguage();
+        LoadUiPreferences(
+            m_style,
+            m_language,
+            m_accent,
+            m_background_image,
+            m_feature_settings);
+        m_feature_settings.start_with_windows_enabled = StartWithWindowsEnabled();
+        m_startup_scan_targets = StartupScanTargets();
+        m_endpoint = L"stdin/stdout NDJSON";
+
+        const auto dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+        NotifyWinUiStage(dispatcher ? L"OnLaunched: dispatcher ready" : L"OnLaunched: dispatcher missing");
+        if (EngineProcessDisabled()) {
+            m_engine_start_error = L"Engine process disabled by HELIOSAV_DISABLE_ENGINE_PROCESS.";
+            NotifyWinUiStage(L"OnLaunched: engine process disabled by environment");
+        } else {
+            NotifyWinUiStage(L"OnLaunched: engine startup deferred until after window activation");
+        }
+
+NotifyWinUiStage(L"OnLaunched: creating Window");
+        m_window = xaml::Window();
+        m_window.Title(L"HeliosAV");
+        if (!MinimalUiEnabled()) {
+            m_window.ExtendsContentIntoTitleBar(true);
+        }
+        NotifyWinUiStage(L"OnLaunched: building XAML content");
+        if (MinimalUiEnabled()) {
+            NotifyWinUiStage(L"OnLaunched: minimal UI enabled by environment");
+            auto minimal = controls::StackPanel();
+            minimal.Padding(Inset(32));
+            minimal.Spacing(12);
+            minimal.Children().Append(Text(L"HeliosAV", 28, win_text::FontWeights::Bold(), Brush(ColorOf(30, 64, 175))));
+            minimal.Children().Append(Text(L"WinUI runtime is visible.", 16, win_text::FontWeights::Normal(), Brush(ColorOf(51, 65, 85))));
+            NotifyWinUiStage(L"OnLaunched: assigning minimal content");
+            m_window.Content(minimal);
+            NotifyWinUiStage(L"OnLaunched: minimal content assigned");
+        } else {
+            auto main_content = BuildMainContent(
+                m_style,
+                m_language,
+                m_accent,
+                m_background_image,
+                m_engine_client,
+                m_protection_monitor,
+                [this](UiStyle style, UiLanguage language, UiAccent accent, std::wstring background) {
+                    Rebuild(style, language, accent, std::move(background));
+                },
+                m_engine_start_error,
+                 [this](const EngineScanResponse& response) {
+                     RunUiSafely(L"Real-time threat dialog", [this, response] {
+                         ShowRealtimeThreatDialog(response);
+                     });
+                 },
+                 m_feature_settings,
+                 [this](const UiFeatureSettings& settings) { ApplyFeatureSettings(settings); },
+                 m_scan_snapshot,
+                 [this](const EngineScanResponse& response) {
+                     RunUiSafely(L"Sandbox analysis dialog", [this, response] {
+                         ShowSandboxAnalysisDialog(response);
+                     });
+                 },
+[this](std::function<void(std::vector<std::wstring>)> submit) {
+                     ShowCustomScanPicker(std::move(submit));
+                 },
+                 [this]() -> HWND { return m_native_window; },
+                 [this] {
+                     if (m_tray) {
+                         m_tray->AllowClose();
+                     }
+                     if (m_window) {
+                         m_window.Close();
+                     }
+                 },
+                 [this](winrt::Microsoft::UI::Xaml::UIElement element) {
+                     m_title_bar_element = element;
+                     if (m_window) {
+                         RunUiSafely(L"Custom title bar assignment", [this, element] {
+                             auto updated = element;
+                             if (m_window) {
+                                 m_window.SetTitleBar(updated);
+                             }
+                         });
+                     }
+                 });
+            NotifyWinUiStage(L"OnLaunched: main content built; assigning to Window");
+            m_window.Content(main_content);
+            NotifyWinUiStage(L"OnLaunched: main content assigned");
+        }
+        NotifyWinUiStage(L"OnLaunched: activating Window");
+        m_window.Activate();
+        HWND main_window = nullptr;
+        try {
+            auto window_native = m_window.as<::IWindowNative>();
+            winrt::check_hresult(window_native->get_WindowHandle(&main_window));
+            ApplyWindowIcon(main_window);
+} catch (...) {
+            NotifyWinUiStage(L"OnLaunched: native window handle unavailable; tray disabled");
+        }
+        m_native_window = main_window;
+        if (!MinimalUiEnabled()) {
+            ApplyBorderlessWindow();
+        }
+        if (main_window != nullptr && !NativeTrayDisabled()) {
+            m_tray = std::make_unique<TrayIcon>();
+            if (!m_tray->Install(
+                    main_window,
+                    [main_window] {
+                        ShowWindow(main_window, SW_SHOW);
+                        SetForegroundWindow(main_window);
+                    },
+                    [this] {
+                        if (m_tray) {
+                            m_tray->AllowClose();
+                        }
+                        if (m_window) {
+                            m_window.Close();
+                        }
+                    })) {
+                m_tray.reset();
+                NotifyWinUiStage(L"OnLaunched: tray installation failed");
+            } else {
+                NotifyWinUiStage(L"OnLaunched: tray installed");
+            }
+        } else if (main_window != nullptr) {
+            NotifyWinUiStage(L"OnLaunched: native tray disabled by environment");
+        }
+        NotifyWinUiWindowReady();
+        m_protection_monitor = std::make_shared<ProtectionMonitor>();
+        NotifyWinUiStage(L"OnLaunched: protection monitor prepared after window activation");
+        if (EngineProcessDisabled()) {
+            NotifyWinUiStage(L"OnLaunched: background engine startup skipped by environment");
+        } else {
+            StartEngineInBackground();
+        }
+        // Realtime protection is opt-in.  Starting ReadDirectoryChangesW at
+        // launch would monitor the GUI's own %TEMP% startup log and can feed
+        // initialization writes back into the IPC queue.
+        NotifyWinUiStage(L"OnLaunched: completed");
+    } catch (const winrt::hresult_error& error) {
+        NotifyWinUiStage(
+            L"OnLaunched: WinRT exception 0x"
+            + std::to_wstring(static_cast<uint32_t>(error.code().value))
+            + L": "
+            + std::wstring(error.message().c_str()));
+        throw;
+    } catch (const std::exception&) {
+        NotifyWinUiStage(L"OnLaunched: std::exception");
+        throw;
+} catch (...) {
+        NotifyWinUiStage(L"OnLaunched: unknown exception");
+        throw;
+    }
+}
+
+void App::ApplyBorderlessWindow() {
+    NotifyWinUiStage(L"ApplyBorderlessWindow: removing OS window chrome");
+    try {
+        auto app_window = m_window.as<winrt::Microsoft::UI::Windowing::AppWindow>();
+        auto presenter = app_window.Presenter().as<winrt::Microsoft::UI::Windowing::OverlappedPresenter>();
+        presenter.SetBorderAndTitleBar(false, false);
+        presenter.IsResizable(true);
+        presenter.IsMaximizable(true);
+        presenter.IsMinimizable(true);
+        auto title_bar = app_window.TitleBar();
+        title_bar.ExtendsContentIntoTitleBar(true);
+        title_bar.PreferredHeightOption(winrt::Microsoft::UI::Windowing::TitleBarHeightOption::Collapsed);
+        NotifyWinUiStage(L"ApplyBorderlessWindow: borderless presenter applied");
+    } catch (const winrt::hresult_error& error) {
+        NotifyWinUiStage(
+            L"ApplyBorderlessWindow: WinRT exception 0x"
+            + std::to_wstring(static_cast<uint32_t>(error.code().value))
+            + L": "
+            + std::wstring(error.message().c_str()));
+    } catch (...) {
+        NotifyWinUiStage(L"ApplyBorderlessWindow: unknown exception");
+    }
+}
+
+void App::RequestStartupScanIfReady() {
+    if (m_startup_scan_targets.empty() || !m_engine_client) {
+        return;
+    }
+    auto targets = m_startup_scan_targets;
+    m_startup_scan_targets.clear();
+    m_engine_client->RequestScan(
+        std::move(targets),
+        120000,
+        false,
+        true,
+        false,
+        true,
+        0.90f,
+        1024ULL * 1024ULL * 1024ULL);
+    NotifyWinUiStage(L"Startup context scan: request sent");
+}
+
+void App::StartEngineInBackground() {
+    bool expected = false;
+    if (!m_engine_starting.compare_exchange_strong(expected, true)) {
+        NotifyWinUiStage(L"Engine bootstrap: background start already in progress");
+        return;
+    }
+
+    const auto dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    if (!dispatcher) {
+        m_engine_starting.store(false);
+        m_engine_start_error = L"WinUI dispatcher unavailable; engine startup was not scheduled.";
+        NotifyWinUiStage(L"Engine bootstrap: " + m_engine_start_error);
+        if (m_window) {
+            Rebuild(m_style, m_language, m_accent, m_background_image);
+        }
+        return;
+    }
+
+    const auto self = get_strong();
+    const std::wstring endpoint = m_endpoint;
+    NotifyWinUiStage(L"Engine bootstrap: starting background worker");
+    std::thread([self, dispatcher, endpoint] {
+        auto process_holder = std::make_shared<std::unique_ptr<EngineProcess>>();
+        std::wstring error;
+        try {
+            NotifyWinUiStage(L"Engine bootstrap: worker entered");
+            *process_holder = std::make_unique<EngineProcess>();
+            if (!(*process_holder)->Start(endpoint)) {
+                error = (*process_holder)->LastError();
+                process_holder->reset();
+            }
+        } catch (const std::exception& exception) {
+            error = L"Standard exception while starting engine in background: "
+                + std::wstring(winrt::to_hstring(exception.what()).c_str());
+            process_holder->reset();
+        } catch (...) {
+            error = L"Unknown exception while starting engine in background.";
+            process_holder->reset();
+        }
+
+        if (!dispatcher.TryEnqueue([self, process_holder, error = std::move(error)]() mutable {
+                self->m_engine_starting.store(false);
+                if (!*process_holder) {
+                    self->m_engine_start_error = error.empty()
+                        ? L"Engine process failed to start."
+                        : error;
+                    NotifyWinUiStage(L"Engine bootstrap: failed: " + self->m_engine_start_error);
+                    if (self->m_window) {
+                        self->Rebuild(self->m_style, self->m_language, self->m_accent, self->m_background_image);
+                    }
+                    return;
+                }
+
+                if (self->m_engine_client) {
+                    self->m_engine_client->Stop();
+                }
+                self->m_engine_process = std::move(*process_holder);
+                const HANDLE engine_stdin_write = self->m_engine_process->TakeStdinWriteHandle();
+                const HANDLE engine_stdout_read = self->m_engine_process->TakeStdoutReadHandle();
+                NotifyWinUiStage(
+                    L"Engine bootstrap: transferred stdio handles stdin="
+                    + std::to_wstring(reinterpret_cast<uintptr_t>(engine_stdin_write))
+                    + L" stdout="
+                    + std::to_wstring(reinterpret_cast<uintptr_t>(engine_stdout_read)));
+
+                const auto ui_dispatcher =
+                    winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+                self->m_engine_client = std::make_shared<EngineClient>(
+                    self->m_endpoint,
+                    ui_dispatcher,
+                    engine_stdin_write,
+                    engine_stdout_read);
+                self->m_engine_start_error.clear();
+                if (self->m_window) {
+                    self->Rebuild(self->m_style, self->m_language, self->m_accent, self->m_background_image);
+                }
+
+                if (EngineClientDisabled()) {
+                    NotifyWinUiStage(L"Engine bootstrap: engine client disabled by environment");
+                    return;
+                }
+
+                NotifyWinUiStage(L"Engine bootstrap: starting engine client");
+                self->m_engine_client->Start();
+                NotifyWinUiStage(L"Engine bootstrap: engine client start requested");
+
+                if (!self->m_protection_monitor) {
+                    self->m_protection_monitor = std::make_shared<ProtectionMonitor>();
+                }
+                if (self->m_feature_settings.r3_enabled && self->m_protection_monitor) {
+                    if (self->m_protection_monitor->IsRunning()) {
+                        self->m_protection_monitor->Stop();
+                    }
+                    if (!StartProtectionMonitor(self->m_protection_monitor, self->m_engine_client)) {
+                        self->m_feature_settings.r3_enabled = false;
+                    }
+                }
+                self->m_engine_client->RequestProtectionModes(
+                    self->m_feature_settings.r3_enabled,
+                    self->m_feature_settings.driver_enabled);
+                self->RequestStartupScanIfReady();
+            })) {
+            if (*process_holder) {
+                (*process_holder)->Stop();
+            }
+            self->m_engine_starting.store(false);
+            NotifyWinUiStage(L"Engine bootstrap: UI dispatcher rejected completion");
+        }
+    }).detach();
+}
+
+void App::Rebuild(UiStyle style, UiLanguage language, UiAccent accent, std::wstring background_image) {
+    m_style = style;
+    m_language = language;
+    m_accent = accent;
+    m_background_image = std::move(background_image);
+    PersistUiPreferences(
+        m_style,
+        m_language,
+        m_accent,
+        m_background_image,
+        m_feature_settings);
+    if (m_window) {
+        auto content = BuildMainContent(
+            m_style,
+            m_language,
+            m_accent,
+            m_background_image,
+            m_engine_client,
+            m_protection_monitor,
+            [this](UiStyle next, UiLanguage next_language, UiAccent next_accent, std::wstring background) {
+                Rebuild(next, next_language, next_accent, std::move(background));
+            },
+            m_engine_start_error,
+             [this](const EngineScanResponse& response) {
+                 RunUiSafely(L"Real-time threat dialog", [this, response] {
+                     ShowRealtimeThreatDialog(response);
+                 });
+             },
+             m_feature_settings,
+             [this](const UiFeatureSettings& settings) { ApplyFeatureSettings(settings); },
+             m_scan_snapshot,
+             [this](const EngineScanResponse& response) {
+                 RunUiSafely(L"Sandbox analysis dialog", [this, response] {
+                     ShowSandboxAnalysisDialog(response);
+                 });
+             },
+             [this](std::function<void(std::vector<std::wstring>)> submit) {
+                 ShowCustomScanPicker(std::move(submit));
+             });
+        NotifyWinUiStage(L"Rebuild: assigning rebuilt content");
+        m_window.Content(content);
+        NotifyWinUiStage(L"Rebuild: content assigned");
+    }
+}
+
+void App::ApplyFeatureSettings(const UiFeatureSettings& settings) {
+    const bool transparency_changed = m_feature_settings.translucent_panels != settings.translucent_panels
+        || m_feature_settings.transparency_percent != settings.transparency_percent;
+    UiFeatureSettings applied = settings;
+    applied.transparency_percent = std::min<uint8_t>(applied.transparency_percent, 55);
+    if (!m_protection_monitor) {
+        m_protection_monitor = std::make_shared<ProtectionMonitor>();
+    }
+    if (m_protection_monitor) {
+        if (applied.r3_enabled && !m_protection_monitor->IsRunning()) {
+            if (!StartProtectionMonitor(m_protection_monitor, m_engine_client)) {
+                applied.r3_enabled = false;
+            }
+        } else if (!applied.r3_enabled && m_protection_monitor->IsRunning()) {
+            m_protection_monitor->Stop();
+        }
+    }
+    m_feature_settings = applied;
+    PersistUiPreferences(
+        m_style,
+        m_language,
+        m_accent,
+        m_background_image,
+        m_feature_settings);
+    if (m_engine_client) {
+        m_engine_client->RequestProtectionModes(
+            applied.r3_enabled,
+            applied.driver_enabled);
+    }
+    if (transparency_changed && m_window) {
+        Rebuild(m_style, m_language, m_accent, m_background_image);
+    }
+}
+
+void App::ShowRealtimeThreatDialog(const EngineScanResponse& response) {
+    static bool dialog_visible = false;
+    if (dialog_visible || !m_feature_settings.notifications_enabled
+        || !m_window || !m_engine_client || response.path.empty()) {
+        return;
+    }
+
+    // The tray integration hides the main window instead of terminating the
+    // process. Bring it back before attaching a ContentDialog so a realtime
+    // decision is visible even when HeliosAV was running in the tray.
+    try {
+        m_window.Activate();
+    } catch (...) {
+        NotifyWinUiStage(L"Real-time threat dialog: window activation failed");
+    }
+
+    const auto root = m_window.Content().try_as<xaml::FrameworkElement>();
+    const auto xaml_root = root ? root.XamlRoot() : nullptr;
+    const auto dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    if (!xaml_root || !dispatcher) {
+        NotifyWinUiStage(L"Real-time threat dialog skipped: XamlRoot or dispatcher unavailable");
+        return;
+    }
+
+    HWND owner_window = nullptr;
+    try {
+        auto window_native = m_window.as<::IWindowNative>();
+        winrt::check_hresult(window_native->get_WindowHandle(&owner_window));
+        // ContentDialog is owned by the main WinUI window. Keeping the owner
+        // topmost for the short decision window also covers a hidden-to-tray
+        // GUI and prevents a protection prompt from being buried by another
+        // application. It is restored as soon as the decision completes.
+        SetWindowTopmost(owner_window, true);
+    } catch (...) {
+        NotifyWinUiStage(L"Real-time threat dialog: native topmost request unavailable");
+    }
+
+    dialog_visible = true;
+    const UiStrings strings = Strings(m_language);
+    const ThemePalette palette = Palette(m_style, m_accent);
+    const std::wstring reason = response.reason.empty()
+        ? strings.malicious_result
+        : response.reason;
+
+    auto dialog = controls::ContentDialog();
+    dialog.XamlRoot(xaml_root);
+    dialog.Title(winrt::box_value(HString(strings.realtime_intercept_title)));
+dialog.PrimaryButtonText(HString(strings.realtime_allow));
+    dialog.SecondaryButtonText(HString(strings.realtime_block + L" (12" + strings.realtime_seconds_suffix + L")"));
+    dialog.DefaultButton(controls::ContentDialogButton::Secondary);
+
+auto body = controls::StackPanel();
+    body.Spacing(12);
+
+    // Warning icon (triangle with !).
+    auto icon_grid = controls::Grid();
+    icon_grid.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    icon_grid.Margin(Inset(0, 8, 0, 0));
+    auto icon_circle = controls::Border();
+    icon_circle.Width(64);
+    icon_circle.Height(64);
+    icon_circle.CornerRadius(xaml::CornerRadius{32, 32, 32, 32});
+    icon_circle.Background(Brush(ColorOf(251, 191, 36, 40)));
+    icon_circle.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    auto icon_text = Text(L"\u26A0", 28, win_text::FontWeights::Bold(), Brush(ColorOf(217, 119, 6)));
+    icon_text.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    icon_text.VerticalAlignment(xaml::VerticalAlignment::Center);
+    icon_circle.Child(icon_text);
+    icon_grid.Children().Append(icon_circle);
+    body.Children().Append(icon_grid);
+
+    // Subtitle.
+    body.Children().Append(Text(
+        HString(strings.realtime_detecting),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+
+    // Detail card with structured fields.
+    auto detail_panel = controls::StackPanel();
+    detail_panel.Spacing(6);
+    // Intercept type.
+    detail_panel.Children().Append(Text(
+        HString(strings.intercept_type),
+        11,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    detail_panel.Children().Append(Text(
+        HString(strings.realtime_process_intercept),
+        14,
+        win_text::FontWeights::SemiBold(),
+        Brush(palette.text)));
+    // Target process.
+    detail_panel.Children().Append(Text(
+        HString(strings.intercept_target),
+        11,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    detail_panel.Children().Append(Text(
+        HString(response.path),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.text)));
+    // Reason.
+    detail_panel.Children().Append(Text(
+        HString(strings.threat_prefix),
+        11,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    detail_panel.Children().Append(Text(
+        HString(reason),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.text)));
+    auto detail_card = controls::Border();
+    detail_card.Background(Brush(ColorOf(241, 245, 249)));
+    detail_card.CornerRadius(xaml::CornerRadius{8, 8, 8, 8});
+    detail_card.Padding(Inset(12));
+    detail_card.Child(detail_panel);
+    body.Children().Append(detail_card);
+
+    auto remember = controls::CheckBox();
+    remember.Content(winrt::box_value(HString(strings.remember_choice)));
+    body.Children().Append(remember);
+    dialog.Content(body);
+
+    auto remaining = std::make_shared<int>(12);
+    auto timer = dispatcher.CreateTimer();
+    timer.Interval(std::chrono::seconds(1));
+    timer.Tick([dialog, timer, remaining, strings](auto const&, auto const&) mutable {
+        if (*remaining <= 1) {
+            timer.Stop();
+            // ContentDialog::Hide() completes ShowAsync() with None. The
+            // completion handler treats every non-Allow result as Block, so
+            // timeout and window-close both fail closed.
+            dialog.Hide();
+            return;
+        }
+        --(*remaining);
+dialog.SecondaryButtonText(HString(
+            strings.realtime_block + L" (" + std::to_wstring(*remaining) + strings.realtime_seconds_suffix + L")"));
+    });
+
+    const auto client = m_engine_client;
+    const std::wstring path = response.path;
+    auto operation = dialog.ShowAsync();
+    operation.Completed([operation, dialog, timer, client, path, owner_window](auto const&, auto const&) {
+        timer.Stop();
+        try {
+            if (operation.GetResults() == controls::ContentDialogResult::Primary) {
+                client->RequestFileAllow(path);
+            } else {
+                client->RequestFileBlock(path);
+            }
+        } catch (...) {
+            // Closing the app while the dialog is completing should not turn
+            // a notification into an unhandled WinRT exception.
+            try {
+                client->RequestFileBlock(path);
+            } catch (...) {
+                // The engine may already have exited; the prompt is still
+                // fail-closed from the user's perspective.
+            }
+        }
+        if (owner_window != nullptr && IsWindow(owner_window)) {
+            SetWindowPos(
+                owner_window,
+                HWND_NOTOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+        dialog_visible = false;
+    });
+    timer.Start();
+}
+
+void App::ShowSandboxAnalysisDialog(const EngineScanResponse& response) {
+    static bool dialog_visible = false;
+    if (dialog_visible || !m_window || response.sandbox_backend.empty()) {
+        return;
+    }
+
+    try {
+        m_window.Activate();
+    } catch (...) {
+        NotifyWinUiStage(L"Sandbox analysis dialog: window activation failed");
+    }
+
+    const auto root = m_window.Content().try_as<xaml::FrameworkElement>();
+    const auto xaml_root = root ? root.XamlRoot() : nullptr;
+    const auto dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    if (!xaml_root || !dispatcher) {
+        NotifyWinUiStage(L"Sandbox analysis dialog skipped: XamlRoot or dispatcher unavailable");
+        return;
+    }
+
+    dialog_visible = true;
+    const UiStrings strings = Strings(m_language);
+    const ThemePalette palette = Palette(m_style, m_accent);
+    auto dialog = controls::ContentDialog();
+    dialog.XamlRoot(xaml_root);
+    dialog.Title(winrt::box_value(HString(strings.sandbox_analysis)));
+    dialog.CloseButtonText(HString(strings.close));
+
+    auto body = controls::StackPanel();
+    body.Spacing(10);
+    body.Children().Append(Text(
+        HString(SandboxAnalysisDescription(response, strings)),
+        15,
+        win_text::FontWeights::SemiBold(),
+        Brush(palette.text)));
+
+    if (!response.sandbox_notes.empty()) {
+        auto notes = controls::StackPanel();
+        notes.Spacing(5);
+        notes.Children().Append(Text(
+            HString(strings.sandbox_status_label),
+            12,
+            win_text::FontWeights::Normal(),
+            Brush(palette.muted)));
+        for (const auto& note : response.sandbox_notes) {
+            notes.Children().Append(Text(
+                HString(L"• " + note),
+                13,
+                win_text::FontWeights::Normal(),
+                Brush(palette.text)));
+        }
+        body.Children().Append(Card(notes, palette));
+    }
+    dialog.Content(body);
+
+    try {
+        auto operation = dialog.ShowAsync();
+        operation.Completed([dialog](auto const&, auto const&) {
+            dialog_visible = false;
+        });
+    } catch (...) {
+        dialog_visible = false;
+        throw;
+    }
+}
+
+void App::ShowCustomScanPicker(std::function<void(std::vector<std::wstring>)> submit) {
+    static bool dialog_visible = false;
+    if (dialog_visible || !m_window || !submit) {
+        return;
+    }
+
+    try {
+        m_window.Activate();
+    } catch (...) {
+        NotifyWinUiStage(L"Custom scan picker: window activation failed");
+    }
+
+    const auto root = m_window.Content().try_as<xaml::FrameworkElement>();
+    const auto xaml_root = root ? root.XamlRoot() : nullptr;
+    const auto dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    if (!xaml_root || !dispatcher) {
+        NotifyWinUiStage(L"Custom scan picker skipped: XamlRoot or dispatcher unavailable");
+        return;
+    }
+
+    dialog_visible = true;
+    const UiStrings strings = Strings(m_language);
+    const ThemePalette palette = Palette(m_style, m_accent);
+    auto dialog = controls::ContentDialog();
+    dialog.XamlRoot(xaml_root);
+    dialog.Title(winrt::box_value(HString(strings.custom_scan)));
+    dialog.PrimaryButtonText(HString(strings.pick_files_scan));
+    dialog.SecondaryButtonText(HString(strings.pick_folder_scan));
+    dialog.CloseButtonText(HString(strings.close));
+    dialog.DefaultButton(controls::ContentDialogButton::Primary);
+
+    auto body = controls::StackPanel();
+    body.Spacing(8);
+    body.Children().Append(Text(
+        HString(strings.quick_description),
+        14,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    dialog.Content(body);
+
+    try {
+        auto operation = dialog.ShowAsync();
+        operation.Completed([operation, submit = std::move(submit)](auto const&, auto const&) mutable {
+            dialog_visible = false;
+            try {
+                const auto result = operation.GetResults();
+                if (result == controls::ContentDialogResult::Primary) {
+                    auto paths = PickFileSystemTargets(false);
+                    if (!paths.empty()) {
+                        submit(std::move(paths));
+                    }
+                } else if (result == controls::ContentDialogResult::Secondary) {
+                    auto paths = PickFileSystemTargets(true);
+                    if (!paths.empty()) {
+                        submit(std::move(paths));
+                    }
+                }
+            } catch (...) {
+                NotifyWinUiStage(L"Custom scan picker: selection failed");
+            }
+        });
+    } catch (...) {
+        dialog_visible = false;
+        throw;
+    }
+}
+
+winrt::Microsoft::UI::Xaml::UIElement BuildMainContent() {
+    return BuildMainContent(UiStyle::FluentLight, UiLanguage::English, UiAccent::Blue, {}, nullptr, nullptr, {}, {});
+}
+
+winrt::Microsoft::UI::Xaml::UIElement BuildMainContent(
+    UiStyle style,
+    UiLanguage language,
+    UiAccent accent,
+    std::wstring background_image,
+    std::shared_ptr<EngineClient> client,
+    std::shared_ptr<ProtectionMonitor> protection_monitor,
+    std::function<void(UiStyle, UiLanguage, UiAccent, std::wstring)> on_preferences_changed,
+    std::wstring engine_start_error,
+    std::function<void(const EngineScanResponse&)> on_realtime_threat,
+    UiFeatureSettings feature_settings,
+    std::function<void(const UiFeatureSettings&)> on_feature_settings_changed,
+    std::shared_ptr<ScanUiSnapshot> scan_snapshot,
+std::function<void(const EngineScanResponse&)> on_sandbox_analysis,
+    std::function<void(std::function<void(std::vector<std::wstring>)>)> on_custom_scan,
+    std::function<HWND(void)> native_window_provider,
+    std::function<void()> on_close_caption,
+    std::function<void(winrt::Microsoft::UI::Xaml::UIElement)> on_caption_ready) {
+    NotifyWinUiStage(L"BuildMainContent: begin");
+    auto palette = Palette(style, accent);
+    if (feature_settings.translucent_panels && style != UiStyle::HighContrast) {
+        const uint8_t panel_alpha = AlphaForTransparency(feature_settings.transparency_percent);
+        palette.sidebar.A = panel_alpha;
+        palette.card.A = std::min<uint8_t>(255, static_cast<uint8_t>(panel_alpha + 6));
+        palette.status_background.A = std::max<uint8_t>(90, static_cast<uint8_t>(panel_alpha - 50));
+    } else {
+        palette.sidebar.A = 255;
+        palette.card.A = 255;
+        palette.status_background.A = 255;
+    }
+    const auto state = std::make_shared<EngineUiState>();
+    state->snapshot = scan_snapshot ? std::move(scan_snapshot) : std::make_shared<ScanUiSnapshot>();
+    state->files_processed = state->snapshot->files_processed;
+    state->total_files = state->snapshot->total_files;
+    state->threat_count = state->snapshot->threat_count;
+    state->error_count = state->snapshot->error_count;
+    state->scan_active = state->snapshot->scan_active;
+    state->engine_connected = state->snapshot->engine_connected;
+    state->engine_disconnects = state->snapshot->engine_disconnects;
+    state->scan_indicator_frame = state->snapshot->scan_indicator_frame;
+    state->scan_started_at = state->snapshot->scan_started_at;
+state->strings = Strings(language);
+    const UiStrings& strings = state->strings;
+    state->palette = palette;
+    state->kernel_events_dropped = state->snapshot->kernel_events_dropped;
+    state->engine_errors = state->snapshot->engine_errors;
+    for (const auto& entry : state->snapshot->scan_threats) {
+        if (entry.path.empty()) {
+            continue;
+        }
+        state->scan_threat_entries.push_back({
+            entry.path,
+            entry.reason,
+            ThreatCheckBox(entry.path, entry.reason),
+        });
+    }
+for (const auto& entry : state->snapshot->realtime_threats) {
+        const std::wstring display_path = entry.path.empty()
+            ? state->strings.realtime_intercept_title
+            : entry.path;
+        state->realtime_threat_entries.push_back({
+            entry.path,
+            entry.reason,
+            ThreatCheckBox(display_path, entry.reason),
+        });
+    }
+    for (const auto& chain : state->snapshot->attack_chains) {
+        state->attack_chain_entries.push_back({
+            chain,
+            AttackChainRow(chain, strings, palette),
+        });
+    }
+    const std::wstring restored_sandbox_analysis = state->snapshot->sandbox_analysis;
+    const auto feature_state = std::make_shared<UiFeatureSettings>(feature_settings);
+    if (const auto dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread()) {
+        state->scan_timer = dispatcher.CreateTimer();
+        state->scan_timer.Interval(std::chrono::milliseconds(500));
+        state->scan_timer.Tick([state](auto const&, auto const&) {
+            RunUiSafely(L"Scan elapsed timer", [state] { UpdateElapsedVisual(state); });
+        });
+        if (state->scan_active) {
+            state->scan_timer.Start();
+        }
+    }
+
+    auto root = controls::Grid();
+    root.Background(RootBackground(palette, background_image));
+    root.RequestedTheme(palette.dark ? xaml::ElementTheme::Dark : xaml::ElementTheme::Light);
+
+    auto sidebar_column = controls::ColumnDefinition();
+    sidebar_column.Width(xaml::GridLengthHelper::FromPixels(272));
+    root.ColumnDefinitions().Append(sidebar_column);
+auto content_column = controls::ColumnDefinition();
+    content_column.Width(xaml::GridLengthHelper::FromValueAndType(1, xaml::GridUnitType::Star));
+    root.ColumnDefinitions().Append(content_column);
+    auto caption_band = controls::RowDefinition();
+    caption_band.Height(xaml::GridLengthHelper::FromPixels(36));
+    root.RowDefinitions().Append(caption_band);
+    auto main_band = controls::RowDefinition();
+    main_band.Height(xaml::GridLengthHelper::FromValueAndType(1, xaml::GridUnitType::Star));
+    root.RowDefinitions().Append(main_band);
+    NotifyWinUiStage(L"BuildMainContent: root layout ready");
+
+    auto sidebar = controls::Border();
+    sidebar.Background(Brush(palette.sidebar));
+    sidebar.CornerRadius(xaml::CornerRadius{0, 18, 18, 0});
+    sidebar.Padding(Inset(20, 26, 20, 20));
+    controls::Grid::SetColumn(sidebar, 0);
+    auto nav = controls::StackPanel();
+    nav.Spacing(6);
+    sidebar.Child(nav);
+
+    // 品牌行：图标 + HeliosAV（左上角风格简化版）
+    auto brand_row = controls::StackPanel();
+    brand_row.Orientation(controls::Orientation::Horizontal);
+    brand_row.Spacing(10);
+    brand_row.Margin(Inset(0, 0, 0, 18));
+    auto brand_icon = Text(L"\u26A0", 18, win_text::FontWeights::Bold(), Brush(palette.primary));
+    brand_row.Children().Append(brand_icon);
+    nav.Children().Append(brand_row);
+    auto brand_title = Text(L"HeliosAV", 16, win_text::FontWeights::SemiBold(), Brush(palette.text));
+    brand_row.Children().Append(brand_title);
+
+    nav.Children().Append(Text(L"概览", 11, win_text::FontWeights::SemiBold(), Brush(palette.sidebar_text)));
+
+    auto status_pill = controls::Border();
+    status_pill.Background(Brush(palette.status_background));
+    status_pill.CornerRadius(xaml::CornerRadius{8, 8, 8, 8});
+    status_pill.Padding(Inset(10, 8, 10, 8));
+    status_pill.Margin(Inset(0, 12, 0, 14));
+    state->connection = Text(HString(strings.engine_connecting), 13, win_text::FontWeights::SemiBold(), Brush(palette.status_text));
+    status_pill.Child(state->connection);
+    nav.Children().Append(status_pill);
+
+    nav.Children().Append(Text(HString(strings.appearance), 12, win_text::FontWeights::SemiBold(), Brush(palette.sidebar_text)));
+    auto style_picker = controls::ComboBox();
+    for (UiStyle candidate : {UiStyle::FluentLight, UiStyle::FluentDark, UiStyle::Aurora,
+                              UiStyle::HighContrast, UiStyle::Glass, UiStyle::Graphite,
+                              UiStyle::Rose}) {
+        style_picker.Items().Append(winrt::box_value(StyleName(candidate, strings)));
+    }
+    style_picker.SelectedIndex(static_cast<int32_t>(style));
+    style_picker.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
+    style_picker.SelectionChanged([on_preferences_changed, language, accent, background_image](auto const& sender, auto const&) {
+        RunUiSafely(L"Sidebar style selector", [&] {
+            if (!on_preferences_changed) {
+                return;
+            }
+            const auto picker = sender.template as<controls::ComboBox>();
+            const int32_t index = picker.SelectedIndex();
+            if (index >= 0 && index <= static_cast<int32_t>(UiStyle::Rose)) {
+                on_preferences_changed(static_cast<UiStyle>(index), language, accent, background_image);
+            }
+        });
+    });
+    nav.Children().Append(style_picker);
+    NotifyWinUiStage(L"BuildMainContent: sidebar ready");
+
+    auto body_scroll = controls::ScrollViewer();
+    body_scroll.Padding(Inset(34, 30, 34, 30));
+    controls::Grid::SetColumn(body_scroll, 1);
+    auto body = controls::StackPanel();
+    body.MaxWidth(1180);
+    body_scroll.Content(body);
+
+    auto header = controls::StackPanel();
+    header.Margin(Inset(0, 0, 0, 20));
+    auto header_title = Text(HString(strings.dashboard), 32, win_text::FontWeights::Bold(), Brush(palette.text));
+    auto header_subtitle = Text(
+        HString(strings.dashboard_subtitle),
+        14,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted));
+    header.Children().Append(header_title);
+    header.Children().Append(header_subtitle);
+    NotifyWinUiStage(L"BuildMainContent: header ready");
+
+    state->status = Text(HString(strings.starting_bridge), 18, win_text::FontWeights::SemiBold(), Brush(palette.text));
+    state->statistics = Text(HString(
+        strings.files_processed + L": 0    " + strings.threats + L": 0    " + strings.errors + L": 0"),
+        14, win_text::FontWeights::Normal(), Brush(palette.muted));
+    auto overview = controls::StackPanel();
+    overview.Spacing(9);
+    overview.Children().Append(state->status);
+    overview.Children().Append(Text(
+        HString(strings.overview_description),
+        14,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    overview.Children().Append(state->statistics);
+    NotifyWinUiStage(L"BuildMainContent: overview ready");
+
+    auto dashboard = controls::StackPanel();
+    dashboard.Spacing(8);
+    dashboard.Children().Append(header);
+    dashboard.Children().Append(HeroCard(strings, palette));
+    dashboard.Children().Append(Card(overview, palette));
+    auto stats_grid = ThreeColumnGrid();
+    auto safe_card = StatCard(HString(strings.protection_surface), HString(strings.ready), palette);
+    auto threat_card = StatCard(HString(strings.threats_this_session), L"0", palette);
+    auto error_card = StatCard(HString(strings.engine_errors), L"0", palette);
+    PutInColumn(safe_card, 0, stats_grid);
+    PutInColumn(threat_card, 1, stats_grid);
+    PutInColumn(error_card, 2, stats_grid);
+    dashboard.Children().Append(stats_grid);
+    auto dashboard_activity = controls::StackPanel();
+    dashboard_activity.Spacing(8);
+    dashboard_activity.Children().Append(Text(HString(strings.recent_activity), 20, win_text::FontWeights::SemiBold(), Brush(palette.text)));
+    state->activity = controls::ListView();
+    state->activity.Height(190);
+    state->activity.Background(Brush(palette.canvas));
+    state->activity_page = controls::ListView();
+    state->activity_page.Height(420);
+    state->activity_page.Background(Brush(palette.canvas));
+    AppendActivity(state, HString(strings.application_started));
+    AppendActivity(state, HString(strings.endpoint_prepared));
+    if (!engine_start_error.empty()) {
+        AppendActivity(state, HString(strings.engine_startup_prefix + engine_start_error));
+    }
+    dashboard_activity.Children().Append(state->activity);
+    dashboard.Children().Append(Card(dashboard_activity, palette));
+    NotifyWinUiStage(L"BuildMainContent: dashboard ready");
+
+    auto scan_page = controls::StackPanel();
+    scan_page.Spacing(10);
+#if 0 // diagnostic scan-page variants; production uses the safe branch below
+    wchar_t scan_page_mode[32]{};
+    GetEnvironmentVariableW(L"HELIOSAV_SCAN_PAGE_MODE", scan_page_mode, static_cast<DWORD>(std::size(scan_page_mode)));
+    const std::wstring scan_mode(scan_page_mode);
+    if (scan_mode == L"minimal") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+    } else if (scan_mode == L"textbox") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        scan_page.Children().Append(path_box);
+    } else if (scan_mode == L"toggles") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto engine_options = controls::StackPanel();
+        engine_options.Orientation(controls::Orientation::Horizontal);
+        for (const auto& label : {strings.yara, strings.heuristic, strings.ai, strings.sandbox}) {
+            auto toggle = controls::ToggleSwitch();
+            toggle.Header(winrt::box_value(HString(label)));
+            engine_options.Children().Append(toggle);
+        }
+        scan_page.Children().Append(engine_options);
+    } else if (scan_mode == L"progress") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        scan_page.Children().Append(Text(L"Progress: 0%", 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    } else if (scan_mode == L"controls") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        scan_page.Children().Append(path_box);
+        auto engine_options = controls::StackPanel();
+        engine_options.Orientation(controls::Orientation::Horizontal);
+        for (const auto& label : {strings.yara, strings.heuristic, strings.ai, strings.sandbox}) {
+            auto toggle = controls::ToggleSwitch();
+            toggle.Header(winrt::box_value(HString(label)));
+            engine_options.Children().Append(toggle);
+        }
+        scan_page.Children().Append(engine_options);
+        scan_page.Children().Append(Text(HString(strings.no_scan), 14, win_text::FontWeights::SemiBold(), Brush(palette.text)));
+        scan_page.Children().Append(Text(L"Progress: 0%", 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    } else if (scan_mode == L"textbox_toggles") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        scan_page.Children().Append(path_box);
+        auto engine_options = controls::StackPanel();
+        engine_options.Orientation(controls::Orientation::Horizontal);
+        for (const auto& label : {strings.yara, strings.heuristic, strings.ai, strings.sandbox}) {
+            auto toggle = controls::ToggleSwitch();
+            toggle.Header(winrt::box_value(HString(label)));
+            engine_options.Children().Append(toggle);
+        }
+        scan_page.Children().Append(engine_options);
+    } else if (scan_mode == L"checkboxes") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        scan_page.Children().Append(path_box);
+        auto engine_options = controls::StackPanel();
+        engine_options.Orientation(controls::Orientation::Horizontal);
+        for (const auto& label : {strings.yara, strings.heuristic, strings.ai, strings.sandbox}) {
+            auto check = controls::CheckBox();
+            check.Content(winrt::box_value(HString(label)));
+            engine_options.Children().Append(check);
+        }
+        scan_page.Children().Append(engine_options);
+    } else if (scan_mode == L"textbox_buttons") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        scan_page.Children().Append(path_box);
+        auto buttons = controls::StackPanel();
+        buttons.Orientation(controls::Orientation::Horizontal);
+        buttons.Children().Append(CommandButton(HString(strings.quick_scan), palette));
+        buttons.Children().Append(CommandButton(HString(strings.full_scan), palette));
+        buttons.Children().Append(CommandButton(HString(strings.scan_path), palette));
+        scan_page.Children().Append(buttons);
+    } else if (scan_mode == L"grid") {
+        auto grid = controls::Grid();
+        auto row1 = controls::RowDefinition();
+        auto row2 = controls::RowDefinition();
+        grid.RowDefinitions().Append(row1);
+        grid.RowDefinitions().Append(row2);
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        controls::Grid::SetRow(path_box, 0);
+        grid.Children().Append(path_box);
+        auto button = CommandButton(HString(strings.scan_path), palette);
+        controls::Grid::SetRow(button, 1);
+        grid.Children().Append(button);
+        scan_page.Children().Append(grid);
+    } else if (scan_mode == L"button_textbox") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        scan_page.Children().Append(CommandButton(HString(strings.scan_path), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        scan_page.Children().Append(path_box);
+    } else if (scan_mode == L"textbox_buttons_vertical") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        scan_page.Children().Append(path_box);
+        auto buttons = controls::StackPanel();
+        buttons.Children().Append(CommandButton(HString(strings.quick_scan), palette));
+        buttons.Children().Append(CommandButton(HString(strings.full_scan), palette));
+        buttons.Children().Append(CommandButton(HString(strings.scan_path), palette));
+        scan_page.Children().Append(buttons);
+    } else if (scan_mode == L"textbox_plainbutton") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        scan_page.Children().Append(path_box);
+        auto button = controls::Button();
+        button.Content(winrt::box_value(HString(strings.scan_path)));
+        scan_page.Children().Append(button);
+    } else if (scan_mode == L"textbox_text") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        scan_page.Children().Append(path_box);
+        scan_page.Children().Append(Text(HString(strings.quick_description), 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    } else if (scan_mode == L"buttons") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto buttons = controls::StackPanel();
+        buttons.Orientation(controls::Orientation::Horizontal);
+        buttons.Children().Append(CommandButton(HString(strings.quick_scan), palette));
+        buttons.Children().Append(CommandButton(HString(strings.full_scan), palette));
+        buttons.Children().Append(CommandButton(HString(strings.scan_path), palette));
+        scan_page.Children().Append(buttons);
+    } else if (scan_mode == L"legacy") {
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        auto path_box = controls::TextBox();
+        path_box.PlaceholderText(HString(strings.path_placeholder));
+        path_box.Text(HString(UserProfile() + L"\\Downloads"));
+        path_box.Margin(Inset(0, 0, 0, 8));
+        scan_page.Children().Append(path_box);
+        auto engine_options = controls::StackPanel();
+        engine_options.Orientation(controls::Orientation::Horizontal);
+        auto yara_toggle = controls::ToggleSwitch();
+        yara_toggle.Header(winrt::box_value(HString(strings.yara)));
+        yara_toggle.IsOn(true);
+        yara_toggle.Margin(Inset(0, 0, 16, 0));
+        auto heuristic_toggle = controls::ToggleSwitch();
+        heuristic_toggle.Header(winrt::box_value(HString(strings.heuristic)));
+        heuristic_toggle.IsOn(true);
+        heuristic_toggle.Margin(Inset(0, 0, 16, 0));
+        auto ai_toggle = controls::ToggleSwitch();
+        ai_toggle.Header(winrt::box_value(HString(strings.ai)));
+        ai_toggle.IsOn(false);
+        ai_toggle.Margin(Inset(0, 0, 16, 0));
+        auto sandbox_toggle = controls::ToggleSwitch();
+        sandbox_toggle.Header(winrt::box_value(HString(strings.sandbox)));
+        sandbox_toggle.IsOn(false);
+        engine_options.Children().Append(yara_toggle);
+        engine_options.Children().Append(heuristic_toggle);
+        engine_options.Children().Append(ai_toggle);
+        engine_options.Children().Append(sandbox_toggle);
+        scan_page.Children().Append(engine_options);
+        state->scan_status = Text(HString(strings.no_scan), 14, win_text::FontWeights::SemiBold(), Brush(palette.text));
+        state->progress = Text(L"Progress: 0%", 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        scan_page.Children().Append(state->scan_status);
+        scan_page.Children().Append(state->progress);
+        auto scan_buttons = controls::StackPanel();
+        scan_buttons.Orientation(controls::Orientation::Horizontal);
+        auto request_scan = [client, state, path_box, yara_toggle, heuristic_toggle, ai_toggle, sandbox_toggle](
+                                std::vector<std::wstring> paths,
+                                const winrt::hstring& label) {
+            NotifyWinUiStage(L"Scan: request handler entered");
+            if (!client) {
+                NotifyWinUiStage(L"Scan: engine client missing");
+                return;
+            }
+            SetProgressPending(
+                state,
+                state->engine_connected
+                    ? state->strings.scan_preparing
+                    : state->strings.scan_waiting_for_engine);
+            state->scan_status.Text(label + HString(state->strings.requested_suffix));
+            AppendActivity(state, HString(std::wstring(label.c_str()) + state->strings.requested_suffix));
+            client->RequestScan(
+                std::move(paths),
+                120000,
+                sandbox_toggle.IsOn(),
+                yara_toggle.IsOn(),
+                ai_toggle.IsOn(),
+                heuristic_toggle.IsOn(),
+                0.90f,
+                    1024ULL * 1024ULL * 1024ULL);
+            NotifyWinUiStage(L"Scan: request sent");
+        };
+        auto quick_scan = CommandButton(HString(strings.quick_scan), palette);
+        quick_scan.Click([request_scan, label = HString(strings.quick_scan)](auto const&, auto const&) {
+            RunUiSafely(L"Quick scan button", [&] {
+                request_scan(QuickScanTargets(), label);
+            });
+        });
+        auto full_scan = CommandButton(HString(strings.full_scan), palette);
+        full_scan.Click([request_scan, label = HString(strings.full_scan)](auto const&, auto const&) {
+            RunUiSafely(L"Full scan button", [&] {
+                request_scan({UserProfile()}, label);
+            });
+        });
+        auto custom_scan = CommandButton(HString(strings.scan_path), palette);
+        custom_scan.Click([request_scan, path_box, state, label = HString(strings.custom_scan)](auto const&, auto const&) {
+            RunUiSafely(L"Custom scan button", [&] {
+                const std::wstring path(path_box.Text().c_str());
+                if (path.empty()) {
+                    state->scan_status.Text(HString(state->strings.path_required));
+                    AppendActivity(state, HString(state->strings.custom_rejected));
+                    return;
+                }
+                request_scan({path}, label);
+            });
+        });
+        scan_buttons.Children().Append(quick_scan);
+        scan_buttons.Children().Append(full_scan);
+        scan_buttons.Children().Append(custom_scan);
+        scan_page.Children().Append(scan_buttons);
+        scan_page.Children().Append(Text(
+            HString(strings.quick_description),
+            13,
+            win_text::FontWeights::Normal(),
+            Brush(palette.muted)));
+
+        auto scan_threats_panel = controls::StackPanel();
+        scan_threats_panel.Spacing(8);
+        scan_threats_panel.Children().Append(Text(
+            HString(strings.scan_threats_detected),
+            18,
+            win_text::FontWeights::SemiBold(),
+            Brush(palette.text)));
+        state->scan_threats_empty = Text(
+            HString(strings.scan_threats_empty),
+            13,
+            win_text::FontWeights::Normal(),
+            Brush(palette.muted));
+        scan_threats_panel.Children().Append(state->scan_threats_empty);
+        state->scan_threats = controls::ListView();
+        state->scan_threats.Height(210);
+        state->scan_threats.Background(Brush(palette.canvas));
+        scan_threats_panel.Children().Append(state->scan_threats);
+        auto scan_threat_actions = controls::StackPanel();
+        scan_threat_actions.Orientation(controls::Orientation::Horizontal);
+        auto allow_selected_scan = CommandButton(HString(strings.allow_selected_threats), palette);
+        allow_selected_scan.Click([client, state](auto const&, auto const&) {
+            RunUiSafely(L"Allow selected scan threats", [&] {
+                SubmitSelectedThreatAction(state, client, true, ThreatListKind::Scan);
+            });
+        });
+        auto clear_selected_scan = CommandButton(HString(strings.clear_selected_threats), palette);
+        clear_selected_scan.Click([client, state](auto const&, auto const&) {
+            RunUiSafely(L"Clear selected scan threats", [&] {
+                SubmitSelectedThreatAction(state, client, false, ThreatListKind::Scan);
+            });
+        });
+        scan_threat_actions.Children().Append(allow_selected_scan);
+        scan_threat_actions.Children().Append(clear_selected_scan);
+        scan_threats_panel.Children().Append(scan_threat_actions);
+        scan_page.Children().Append(Card(scan_threats_panel, palette));
+    }
+#endif
+    if (ScanPageDisabled()) {
+        NotifyWinUiStage(L"BuildMainContent: scan page disabled by environment");
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        state->scan_status = Text(HString(strings.no_scan), 14, win_text::FontWeights::SemiBold(), Brush(palette.text));
+        state->progress = Text(L"Progress: 0%", 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        state->progress_details = Text(
+            L"Scan page controls are disabled for WinUI diagnostics.",
+            13,
+            win_text::FontWeights::Normal(),
+            Brush(palette.muted));
+        state->elapsed = Text(HString(strings.scan_elapsed_label + L": 0:00"), 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        scan_page.Children().Append(state->scan_status);
+        scan_page.Children().Append(state->progress);
+        scan_page.Children().Append(state->progress_details);
+        scan_page.Children().Append(state->elapsed);
+    } else {
+        // Keep the production scan page on the WinUI-safe control set.  On
+        // this runtime, combining TextBox with sibling input controls inside
+        // a dynamically attached StackPanel can raise an asynchronous XAML
+        // exception.  The fixed-scope actions still exercise the same engine
+        // pipeline while avoiding that runtime layout path.
+        scan_page.Children().Append(SectionHeading(
+            HString(strings.scan), HString(strings.scan_subtitle), palette));
+        state->scan_status = Text(HString(strings.no_scan), 14, win_text::FontWeights::SemiBold(), Brush(palette.text));
+        state->progress = Text(L"Progress: 0%", 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        scan_page.Children().Append(Text(
+            HString(strings.cloud_scan_description),
+            13,
+            win_text::FontWeights::Normal(),
+            Brush(palette.muted)));
+        scan_page.Children().Append(state->scan_status);
+        state->scan_indicator = Text(L"-", 16, win_text::FontWeights::SemiBold(), Brush(palette.primary));
+        scan_page.Children().Append(state->scan_indicator);
+        scan_page.Children().Append(state->progress);
+        state->progress_details = Text(L"", 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        state->elapsed = Text(HString(strings.scan_elapsed_label + L": 0:00"), 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        // 扫描进度状态行（类似截图的红色进度条 + 统计数字）
+        auto scan_stats_row = controls::StackPanel();
+        scan_stats_row.Orientation(controls::Orientation::Horizontal);
+        scan_stats_row.Spacing(20);
+        scan_stats_row.Margin(Inset(0, 6, 0, 6));
+        auto stat_threat = Text(L"0  威胁", 13, win_text::FontWeights::Bold(), Brush(palette.text));
+        auto stat_scanned = Text(L"0  已扫描", 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        auto stat_total = Text(L"0  总文件", 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        auto stat_speed = Text(L"0/s  速度", 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        auto stat_elapsed = Text(L"0s  耗时", 13, win_text::FontWeights::Normal(), Brush(palette.muted));
+        scan_stats_row.Children().Append(stat_threat);
+        scan_stats_row.Children().Append(stat_scanned);
+        scan_stats_row.Children().Append(stat_total);
+        scan_stats_row.Children().Append(stat_speed);
+        scan_stats_row.Children().Append(stat_elapsed);
+        scan_page.Children().Append(state->progress_details);
+        scan_page.Children().Append(state->elapsed);
+        auto scan_buttons = controls::StackPanel();
+        auto request_scan = [client, state, feature_state](std::vector<std::wstring> paths, const winrt::hstring& label) {
+            RunUiSafely(L"Safe scan button", [&] {
+                NotifyWinUiStage(L"Scan: request handler entered");
+                if (!client) {
+                    NotifyWinUiStage(L"Scan: engine client missing");
+                    SetProgressPending(state, state->strings.scan_waiting_for_engine);
+                    if (state->scan_status) {
+                        state->scan_status.Text(HString(state->strings.engine_waiting));
+                    }
+                    AppendActivity(state, HString(state->strings.engine_waiting));
+                    return;
+                }
+                NotifyWinUiStage(L"Scan: target count=" + std::to_wstring(paths.size()));
+                ClearScanThreatViews(state);
+                if (state->sandbox_analysis) {
+                    state->sandbox_analysis.Text(HString(
+                        state->strings.sandbox_analysis + L": " + state->strings.scan_preparing));
+                }
+                state->scan_active = true;
+                state->scan_started_at = std::chrono::steady_clock::now();
+                state->scan_indicator_frame = 0;
+                SyncScanSnapshot(state);
+                UpdateScanIndicator(state);
+                if (state->scan_timer) {
+                    state->scan_timer.Start();
+                }
+                SetProgressPending(
+                    state,
+                    state->engine_connected
+                        ? state->strings.scan_preparing
+                        : state->strings.scan_waiting_for_engine);
+                state->scan_status.Text(label + HString(state->strings.requested_suffix));
+                AppendActivity(state, HString(std::wstring(label.c_str()) + state->strings.requested_suffix));
+                const bool cloud_placeholder = feature_state->cloud_placeholder_enabled;
+                if (cloud_placeholder) {
+                    AppendActivity(state, HString(state->strings.cloud_placeholder_notice));
+                }
+                client->RequestScan(
+                    std::move(paths),
+                    120000,
+                    feature_state->sandbox_enabled,
+                    feature_state->yara_enabled,
+                    feature_state->ai_enabled,
+                    feature_state->heuristic_enabled,
+                    0.90f,
+                    1024ULL * 1024ULL * 1024ULL,
+                    false,
+                    cloud_placeholder);
+                NotifyWinUiStage(L"Scan: request sent");
+            });
+        };
+        auto quick_scan = CommandButton(HString(strings.quick_scan), palette);
+        quick_scan.Click([request_scan, label = HString(strings.quick_scan)](auto const&, auto const&) {
+            request_scan(QuickScanTargets(), label);
+        });
+        auto full_scan = CommandButton(HString(strings.full_scan), palette);
+        full_scan.Click([request_scan, label = HString(strings.full_scan)](auto const&, auto const&) {
+            request_scan({UserProfile()}, label);
+        });
+        auto custom_scan = CommandButton(HString(strings.custom_scan), palette);
+        custom_scan.Click([on_custom_scan, request_scan, label = HString(strings.custom_scan)](auto const&, auto const&) {
+            RunUiSafely(L"Custom scan target picker", [&] {
+                if (!on_custom_scan) {
+                    return;
+                }
+                on_custom_scan([request_scan, label](std::vector<std::wstring> paths) mutable {
+                    if (!paths.empty()) {
+                        request_scan(std::move(paths), label);
+                    }
+                });
+            });
+        });
+        auto cancel_scan = CommandButton(HString(strings.scan_cancel), palette);
+        cancel_scan.Click([client, state](auto const&, auto const&) {
+            RunUiSafely(L"Cancel scan", [&] {
+                if (client) {
+                    client->CancelScan();
+                }
+                state->scan_active = false;
+                if (state->scan_timer) {
+                    state->scan_timer.Stop();
+                }
+                UpdateScanIndicator(state);
+                state->scan_status.Text(HString(state->strings.scan_cancelled));
+                AppendActivity(state, HString(state->strings.scan_cancelled + L"."));
+            });
+        });
+        scan_buttons.Children().Append(quick_scan);
+        scan_buttons.Children().Append(full_scan);
+        scan_buttons.Children().Append(custom_scan);
+        scan_buttons.Children().Append(cancel_scan);
+        scan_page.Children().Append(scan_buttons);
+        // 扫描状态统计行（类似截图的红色进度条 + 数字统计）
+        scan_page.Children().Append(scan_stats_row);
+        scan_page.Children().Append(Text(
+            HString(strings.quick_description),
+            13,
+            win_text::FontWeights::Normal(),
+            Brush(palette.muted)));
+
+        auto sandbox_panel = controls::StackPanel();
+        sandbox_panel.Spacing(6);
+        sandbox_panel.Children().Append(Text(
+            HString(strings.sandbox_analysis),
+            18,
+            win_text::FontWeights::SemiBold(),
+            Brush(palette.text)));
+        state->sandbox_analysis = Text(
+            HString(strings.sandbox_analysis + L": " + strings.not_configured),
+            13,
+            win_text::FontWeights::Normal(),
+            Brush(palette.muted));
+        sandbox_panel.Children().Append(state->sandbox_analysis);
+        auto show_sandbox_details = CommandButton(HString(strings.sandbox_analysis), palette);
+        show_sandbox_details.Click([state, on_sandbox_analysis](auto const&, auto const&) {
+            RunUiSafely(L"Show sandbox analysis details", [&] {
+                if (on_sandbox_analysis && state->last_sandbox_response) {
+                    on_sandbox_analysis(*state->last_sandbox_response);
+                }
+            });
+        });
+        sandbox_panel.Children().Append(show_sandbox_details);
+        scan_page.Children().Append(Card(sandbox_panel, palette));
+
+        auto scan_threats_panel = controls::StackPanel();
+        scan_threats_panel.Spacing(8);
+        scan_threats_panel.Children().Append(Text(
+            HString(strings.scan_threats_detected),
+            18,
+            win_text::FontWeights::SemiBold(),
+            Brush(palette.text)));
+        state->scan_threats_empty = Text(
+            HString(strings.scan_threats_empty),
+            13,
+            win_text::FontWeights::Normal(),
+            Brush(palette.muted));
+        scan_threats_panel.Children().Append(state->scan_threats_empty);
+        state->scan_threats = controls::ListView();
+        state->scan_threats.Height(210);
+        state->scan_threats.Background(Brush(palette.canvas));
+        scan_threats_panel.Children().Append(state->scan_threats);
+        auto scan_threat_actions = controls::StackPanel();
+        scan_threat_actions.Orientation(controls::Orientation::Horizontal);
+        auto allow_selected_scan = CommandButton(HString(strings.allow_selected_threats), palette);
+        allow_selected_scan.Click([client, state](auto const&, auto const&) {
+            RunUiSafely(L"Allow selected scan threats", [&] {
+                SubmitSelectedThreatAction(state, client, true, ThreatListKind::Scan);
+            });
+        });
+        auto clear_selected_scan = CommandButton(HString(strings.clear_selected_threats), palette);
+        clear_selected_scan.Click([client, state](auto const&, auto const&) {
+            RunUiSafely(L"Clear selected scan threats", [&] {
+                SubmitSelectedThreatAction(state, client, false, ThreatListKind::Scan);
+            });
+        });
+        scan_threat_actions.Children().Append(allow_selected_scan);
+        scan_threat_actions.Children().Append(clear_selected_scan);
+        scan_threats_panel.Children().Append(scan_threat_actions);
+        scan_page.Children().Append(Card(scan_threats_panel, palette));
+    }
+
+    NotifyWinUiStage(L"BuildMainContent: scan page ready");
+
+    auto protection_page = controls::StackPanel();
+    protection_page.Spacing(10);
+    protection_page.Children().Append(SectionHeading(
+        HString(strings.protection), HString(strings.protection_subtitle), palette));
+    auto r3 = controls::ToggleSwitch();
+    r3.Header(winrt::box_value(HString(strings.r3_protection)));
+    r3.OffContent(winrt::box_value(HString(strings.paused)));
+    r3.OnContent(winrt::box_value(HString(strings.monitoring)));
+    r3.IsOn(feature_state->r3_enabled);
+    r3.Toggled([state, client, protection_monitor, feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        RunUiSafely(L"Realtime protection toggle", [&] {
+            const auto toggle = sender.template as<controls::ToggleSwitch>();
+            const bool enabled = toggle.IsOn();
+            feature_state->r3_enabled = enabled;
+            if (on_feature_settings_changed) {
+                on_feature_settings_changed(*feature_state);
+                state->status.Text(HString(enabled ? state->strings.protection_enabled : state->strings.protection_paused));
+                return;
+            }
+            const bool running = enabled && StartProtectionMonitor(protection_monitor, client);
+            if (enabled && !running) {
+                state->status.Text(HString(state->strings.protection_open_failed));
+                AppendActivity(state, HString(state->strings.protection_start_failed));
+                return;
+            }
+            if (!enabled && protection_monitor) {
+                protection_monitor->Stop();
+            }
+            if (client) {
+                client->RequestProtectionModes(enabled, client->DriverProtectionEnabled());
+            }
+            state->status.Text(enabled ? HString(state->strings.protection_enabled) : HString(state->strings.protection_paused));
+            AppendActivity(state, enabled ? HString(state->strings.monitoring_enabled) : HString(state->strings.monitoring_paused));
+        });
+    });
+    protection_page.Children().Append(Card(r3, palette));
+    auto driver_protection = controls::ToggleSwitch();
+    driver_protection.Header(winrt::box_value(HString(strings.driver_protection)));
+    driver_protection.OffContent(winrt::box_value(HString(strings.paused)));
+    driver_protection.OnContent(winrt::box_value(HString(strings.monitoring)));
+    driver_protection.IsOn(feature_state->driver_enabled);
+    driver_protection.Toggled([state, client, protection_monitor, feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        RunUiSafely(L"Driver protection toggle", [&] {
+            const auto toggle = sender.template as<controls::ToggleSwitch>();
+            const bool enabled = toggle.IsOn();
+            feature_state->driver_enabled = enabled;
+            if (on_feature_settings_changed) {
+                on_feature_settings_changed(*feature_state);
+                state->status.Text(HString(enabled ? state->strings.driver_protection : state->strings.driver_unavailable));
+                return;
+            }
+            const bool r3_enabled = protection_monitor && protection_monitor->IsRunning();
+            if (client) {
+                client->RequestProtectionModes(r3_enabled, enabled);
+            }
+            state->status.Text(HString(enabled
+                ? state->strings.driver_protection
+                : state->strings.driver_unavailable));
+            AppendActivity(state, HString(enabled
+                ? state->strings.driver_protection
+                : state->strings.driver_unavailable));
+        });
+    });
+    protection_page.Children().Append(Card(driver_protection, palette));
+    // File protection toggle.
+    auto file_protection = controls::ToggleSwitch();
+    file_protection.Header(winrt::box_value(HString(strings.protection_file)));
+    file_protection.OffContent(winrt::box_value(HString(strings.paused)));
+    file_protection.OnContent(winrt::box_value(HString(strings.monitoring)));
+    file_protection.IsOn(feature_state->r3_enabled);
+    file_protection.Toggled([state, client, feature_state](auto const& sender, auto const&) {
+        RunUiSafely(L"File protection toggle", [&] {
+            const auto toggle = sender.template as<controls::ToggleSwitch>();
+            const bool enabled = toggle.IsOn();
+            if (client) {
+                client->RequestProtectionModes(feature_state->r3_enabled, enabled);
+            }
+            state->status.Text(HString(enabled ? state->strings.protection_file : state->strings.protection_paused));
+        });
+    });
+    protection_page.Children().Append(Card(file_protection, palette));
+    // Quiet mode toggle.
+    auto quiet_mode = controls::ToggleSwitch();
+    quiet_mode.Header(winrt::box_value(HString(strings.protection_quiet_mode)));
+    quiet_mode.OffContent(winrt::box_value(HString(L"Off")));
+    quiet_mode.OnContent(winrt::box_value(HString(L"On")));
+    quiet_mode.IsOn(false);
+    quiet_mode.Toggled([state](auto const& sender, auto const&) {
+        RunUiSafely(L"Quiet mode toggle", [&] {
+            const auto toggle = sender.template as<controls::ToggleSwitch>();
+            const bool enabled = toggle.IsOn();
+            state->status.Text(HString(enabled
+                ? state->strings.protection_quiet_mode
+                : state->strings.protection_paused));
+        });
+    });
+    protection_page.Children().Append(Card(quiet_mode, palette));
+    auto protection_layers = controls::StackPanel();
+    protection_layers.Spacing(6);
+    protection_layers.Children().Append(Text(
+        HString(strings.r3_protection_description),
+        14,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    protection_layers.Children().Append(Text(
+        HString(strings.driver_protection_description),
+        14,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    protection_page.Children().Append(Card(protection_layers, palette));
+    auto protection_info = controls::StackPanel();
+    protection_info.Spacing(8);
+    protection_info.Children().Append(Text(HString(strings.kernel_policy), 18, win_text::FontWeights::SemiBold(), Brush(palette.text)));
+    protection_info.Children().Append(Text(HString(strings.kernel_description), 14, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    protection_info.Children().Append(Text(HString(strings.profiles), 14, win_text::FontWeights::SemiBold(), Brush(palette.text)));
+    protection_info.Children().Append(Text(HString(strings.localized_rules), 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    protection_page.Children().Append(Card(protection_info, palette));
+    NotifyWinUiStage(L"BuildMainContent: protection page ready");
+
+    auto threats_page = controls::StackPanel();
+    threats_page.Spacing(10);
+    threats_page.Children().Append(SectionHeading(HString(strings.threats), HString(strings.threats_subtitle), palette));
+    state->threats_empty = Text(
+        HString(strings.scan_threats_empty),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted));
+    threats_page.Children().Append(state->threats_empty);
+    state->threats = controls::ListView();
+    state->threats.Height(420);
+    state->threats.Background(Brush(palette.canvas));
+    threats_page.Children().Append(state->threats);
+    auto threat_actions = controls::StackPanel();
+    threat_actions.Orientation(controls::Orientation::Horizontal);
+    auto allow_selected_threats = CommandButton(HString(strings.allow_selected_threats), palette);
+    allow_selected_threats.Click([client, state](auto const&, auto const&) {
+        RunUiSafely(L"Allow selected threats page", [&] {
+            SubmitSelectedThreatAction(state, client, true, ThreatListKind::Realtime);
+        });
+    });
+    auto clear_selected_threats = CommandButton(HString(strings.clear_selected_threats), palette);
+    clear_selected_threats.Click([client, state](auto const&, auto const&) {
+        RunUiSafely(L"Clear selected threats page", [&] {
+            SubmitSelectedThreatAction(state, client, false, ThreatListKind::Realtime);
+        });
+    });
+    auto clear_threats = CommandButton(HString(strings.clear_threats), palette);
+    clear_threats.Click([state](auto const&, auto const&) {
+        RunUiSafely(L"Clear threats button", [&] { ClearThreatViews(state); });
+    });
+    threat_actions.Children().Append(allow_selected_threats);
+    threat_actions.Children().Append(clear_selected_threats);
+    threat_actions.Children().Append(clear_threats);
+    threats_page.Children().Append(threat_actions);
+    auto quarantine_panel = controls::StackPanel();
+    quarantine_panel.Spacing(8);
+    quarantine_panel.Children().Append(Text(
+        HString(strings.quarantine),
+        18,
+        win_text::FontWeights::SemiBold(),
+        Brush(palette.text)));
+    state->quarantine_empty = Text(
+        HString(strings.quarantine_empty),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted));
+    quarantine_panel.Children().Append(state->quarantine_empty);
+    state->quarantine = controls::ListView();
+    state->quarantine.Height(260);
+    state->quarantine.Background(Brush(palette.canvas));
+    quarantine_panel.Children().Append(state->quarantine);
+    auto quarantine_actions = controls::StackPanel();
+    quarantine_actions.Orientation(controls::Orientation::Horizontal);
+    auto restore_selected = CommandButton(HString(strings.restore_selected_quarantine), palette);
+    restore_selected.Click([client, state](auto const&, auto const&) {
+        RunUiSafely(L"Restore selected quarantine items", [&] {
+            SubmitSelectedQuarantineAction(state, client, true);
+        });
+    });
+    auto delete_selected = CommandButton(HString(strings.delete_selected_quarantine), palette);
+    delete_selected.Click([client, state](auto const&, auto const&) {
+        RunUiSafely(L"Delete selected quarantine items", [&] {
+            SubmitSelectedQuarantineAction(state, client, false);
+        });
+    });
+    quarantine_actions.Children().Append(restore_selected);
+    quarantine_actions.Children().Append(delete_selected);
+    quarantine_panel.Children().Append(quarantine_actions);
+threats_page.Children().Append(Card(quarantine_panel, palette));
+    NotifyWinUiStage(L"BuildMainContent: threats page ready");
+
+    auto attack_chain_page = controls::StackPanel();
+    attack_chain_page.Spacing(10);
+    attack_chain_page.Children().Append(SectionHeading(
+        HString(strings.attack_chain), HString(strings.attack_chain_subtitle), palette));
+    state->attack_chain_empty = Text(
+        HString(strings.attack_chain_empty),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted));
+    attack_chain_page.Children().Append(state->attack_chain_empty);
+    state->attack_chain = controls::ListView();
+    state->attack_chain.Height(440);
+    state->attack_chain.Background(Brush(palette.canvas));
+    attack_chain_page.Children().Append(state->attack_chain);
+    auto clear_chains = CommandButton(HString(strings.attack_chain_clear), palette);
+    clear_chains.Click([state](auto const&, auto const&) {
+        RunUiSafely(L"Clear attack chains button", [&] {
+            ClearAttackChainViews(state);
+        });
+    });
+    attack_chain_page.Children().Append(clear_chains);
+    RebuildAttackChainViews(state);
+    NotifyWinUiStage(L"BuildMainContent: attack chain page ready");
+
+    auto activity_page = controls::StackPanel();
+    activity_page.Spacing(10);
+    activity_page.Children().Append(SectionHeading(HString(strings.activity), HString(strings.activity_subtitle), palette));
+    activity_page.Children().Append(state->activity_page);
+    auto clear_activity = CommandButton(HString(strings.clear_activity), palette);
+    clear_activity.Click([state](auto const&, auto const&) {
+        RunUiSafely(L"Clear activity button", [&] {
+            state->activity.Items().Clear();
+            state->activity_page.Items().Clear();
+        });
+    });
+    activity_page.Children().Append(clear_activity);
+    NotifyWinUiStage(L"BuildMainContent: activity page ready");
+
+    auto updates_page = controls::StackPanel();
+    updates_page.Spacing(10);
+    updates_page.Children().Append(SectionHeading(HString(strings.updates), HString(strings.updates_subtitle), palette));
+    auto reload = CommandButton(HString(strings.reload_databases), palette);
+    reload.Click([client, state](auto const&, auto const&) {
+        RunUiSafely(L"Reload databases button", [&] {
+            AppendActivity(state, HString(state->strings.database_reload_requested));
+            if (client) {
+                client->RequestConfigReload();
+            }
+        });
+    });
+    updates_page.Children().Append(reload);
+    updates_page.Children().Append(Text(HString(strings.updates_description), 14, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    auto import_hash_database = CommandButton(HString(strings.import_hash_database), palette);
+    import_hash_database.Click([client, state, strings](auto const&, auto const&) {
+        RunUiSafely(L"Import hash database", [&] {
+            if (!client) {
+                if (state->status) state->status.Text(L"The engine is not connected.");
+                return;
+            }
+            const auto paths = PickFileSystemTargets(false);
+            if (paths.empty()) {
+                return;
+            }
+            client->RequestHashDatabaseImport(paths.front());
+            if (state->status) state->status.Text(HString(strings.hash_database_import_requested));
+            AppendActivity(state, HString(strings.hash_database_import_requested));
+        });
+    });
+    updates_page.Children().Append(Text(
+        HString(strings.hash_database_import_description),
+        14,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    updates_page.Children().Append(import_hash_database);
+    NotifyWinUiStage(L"BuildMainContent: updates page ready");
+
+    // ------------------------------------------------------------------
+    // AI training page: drives `heliosav_engine.exe --train-synthetic`
+    // as an out-of-band child process (the main engine IPC stays free).
+    // Enhanced with detailed progress, model comparison, semi-auto controls.
+    // ------------------------------------------------------------------
+    auto ai_training_page = controls::StackPanel();
+    ai_training_page.Spacing(10);
+    ai_training_page.Children().Append(SectionHeading(
+        HString(strings.ai_training), HString(strings.ai_training_subtitle), palette));
+
+    auto training_intro = controls::StackPanel();
+    training_intro.Spacing(8);
+    training_intro.Children().Append(Text(
+        HString(strings.ai_training_description),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    ai_training_page.Children().Append(Card(training_intro, palette));
+
+    // Progress bar (visual).
+    auto progress_outer = controls::Border();
+    progress_outer.Height(8);
+    progress_outer.CornerRadius(xaml::CornerRadius{4, 4, 4, 4});
+    progress_outer.Background(Brush(ColorOf(226, 232, 240)));
+    progress_outer.Padding(Inset(0));
+    auto progress_inner = controls::Border();
+    progress_inner.Height(8);
+    progress_inner.CornerRadius(xaml::CornerRadius{4, 4, 4, 4});
+    progress_inner.Background(Brush(palette.primary));
+    progress_inner.Width(0);
+    progress_outer.Child(progress_inner);
+
+    // Metrics row.
+    auto metrics_panel = controls::StackPanel();
+    metrics_panel.Spacing(4);
+    auto training_stage_label = Text(
+        HString(strings.ai_training_status_idle), 13, win_text::FontWeights::SemiBold(), Brush(palette.text));
+    auto training_epoch_label = Text(
+        L"", 12, win_text::FontWeights::Normal(), Brush(palette.muted));
+    auto training_loss_label_txt = Text(
+        L"", 12, win_text::FontWeights::Normal(), Brush(palette.muted));
+    auto training_acc_label = Text(
+        L"", 12, win_text::FontWeights::Normal(), Brush(palette.muted));
+    auto training_time_label = Text(
+        L"", 12, win_text::FontWeights::Normal(), Brush(palette.muted));
+    metrics_panel.Children().Append(training_stage_label);
+    metrics_panel.Children().Append(training_epoch_label);
+    metrics_panel.Children().Append(training_loss_label_txt);
+    metrics_panel.Children().Append(training_acc_label);
+    metrics_panel.Children().Append(training_time_label);
+
+    // Model comparison card (hidden until training completes).
+    auto comparison_panel = controls::StackPanel();
+    comparison_panel.Spacing(6);
+    comparison_panel.Visibility(xaml::Visibility::Collapsed);
+    auto comparison_title = Text(
+        HString(strings.training_comparison_title), 14, win_text::FontWeights::SemiBold(), Brush(palette.text));
+    auto comparison_baseline = Text(
+        L"", 12, win_text::FontWeights::Normal(), Brush(palette.muted));
+    auto comparison_augmented = Text(
+        L"", 12, win_text::FontWeights::Normal(), Brush(palette.muted));
+    auto comparison_gain = Text(
+        L"", 12, win_text::FontWeights::Normal(), Brush(palette.muted));
+    auto comparison_selected = Text(
+        L"", 12, win_text::FontWeights::Normal(), Brush(palette.muted));
+    comparison_panel.Children().Append(comparison_title);
+    comparison_panel.Children().Append(comparison_baseline);
+    comparison_panel.Children().Append(comparison_augmented);
+    comparison_panel.Children().Append(comparison_gain);
+    comparison_panel.Children().Append(comparison_selected);
+
+    // Auto-stop toggle.
+    auto auto_stop_toggle = controls::ToggleSwitch();
+    auto_stop_toggle.Header(winrt::box_value(HString(strings.training_auto_stop)));
+    auto_stop_toggle.OffContent(winrt::box_value(HString(L"Off")));
+    auto_stop_toggle.OnContent(winrt::box_value(HString(L"On")));
+    auto_stop_toggle.IsOn(false);
+
+    const auto training_runner = std::make_shared<TrainingRunner>();
+    const auto training_start_time = std::make_shared<std::chrono::steady_clock::time_point>();
+    const auto training_paused = std::make_shared<bool>(false);
+
+    // Start button.
+    auto start_training = CommandButton(HString(strings.ai_training_start), palette);
+    start_training.Click([training_runner, training_progress_label = training_stage_label,
+                          training_epoch = training_epoch_label,
+                          training_loss = training_loss_label_txt,
+                          training_acc = training_acc_label,
+                          training_time = training_time_label,
+                          progress_bar = progress_inner,
+                          progress_fill = progress_outer,
+                          comparison = comparison_panel,
+                          comp_baseline = comparison_baseline,
+                          comp_augmented = comparison_augmented,
+                          comp_gain = comparison_gain,
+                          comp_selected = comparison_selected,
+                          auto_stop = auto_stop_toggle,
+                          start_time = training_start_time,
+                          paused = training_paused,
+                          client, state, strings](
+                             auto const&, auto const&) {
+        RunUiSafely(L"AI training start", [&] {
+            if (!training_runner) return;
+            if (training_runner->IsRunning()) {
+                if (training_progress_label) training_progress_label.Text(HString(strings.ai_training_status_running));
+                return;
+            }
+            *paused = false;
+            *start_time = std::chrono::steady_clock::now();
+            comparison.Visibility(xaml::Visibility::Collapsed);
+            std::wstring spawn_error;
+            const auto dispatcher =
+                winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+            auto event_handler = [training_progress = training_progress_label,
+                                  training_epoch, training_loss, training_acc, training_time,
+                                  progress_bar, progress_fill, start_time, strings, paused, auto_stop,
+                                  comp_baseline, comp_augmented, comp_gain, comp_selected, comparison](
+                                     const TrainingRunnerEvent& event) {
+                if (event.type == L"stage") {
+                    std::wstring stage_label;
+                    if (event.name == L"generation") stage_label = strings.training_stage_generating;
+                    else if (event.name == L"loading") stage_label = strings.training_stage_loading;
+                    else if (event.name == L"export") stage_label = strings.training_stage_exporting;
+                    else stage_label = HString(event.message);
+                    if (training_progress) training_progress.Text(HString(stage_label));
+                    return;
+                }
+                if (event.type == L"epoch") {
+                    if (training_epoch) {
+                        wchar_t buf[128];
+                        swprintf_s(buf, L"%s: %u/%u  %s: %.4f  %s: %.3f%%",
+                            strings.training_epoch_label.c_str(), event.epoch, event.total_epochs,
+                            strings.training_loss_label.c_str(), event.loss,
+                            strings.training_accuracy_label.c_str(), event.accuracy * 100.0);
+                        training_epoch.Text(HString(buf));
+                    }
+                    if (training_acc) {
+                        wchar_t buf[80];
+                        swprintf_s(buf, L"%s: %.3f%%", strings.training_accuracy_label.c_str(), event.accuracy * 100.0);
+                        training_acc.Text(HString(buf));
+                    }
+                    if (training_loss) {
+                        wchar_t buf[64];
+                        swprintf_s(buf, L"%s: %.4f", strings.training_loss_label.c_str(), event.loss);
+                        training_loss.Text(HString(buf));
+                    }
+                    if (progress_bar && event.total_epochs > 0) {
+                        double pct = static_cast<double>(event.epoch) / static_cast<double>(event.total_epochs);
+                        double fill_width = pct * progress_fill.ActualWidth();
+                        progress_bar.Width(std::max(0.0, fill_width));
+                    }
+                    if (training_time) {
+                        auto elapsed = std::chrono::steady_clock::now() - *start_time;
+                        auto secs = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
+                        wchar_t buf[64];
+                        swprintf_s(buf, L"%s: %dm %02ds", strings.training_time_elapsed.c_str(),
+                            static_cast<int>(secs / 60), static_cast<int>(secs % 60));
+                        training_time.Text(HString(buf));
+                    }
+                    return;
+                }
+                if (event.type == L"comparison") {
+                    if (comp_baseline) {
+                        wchar_t buf[128];
+                        swprintf_s(buf, L"%s: %.3f%%", strings.training_baseline_label.c_str(), event.baseline_accuracy * 100.0);
+                        comp_baseline.Text(HString(buf));
+                    }
+                    if (comp_augmented) {
+                        wchar_t buf[128];
+                        swprintf_s(buf, L"%s: %.3f%%", strings.training_augmented_label.c_str(), event.augmented_accuracy * 100.0);
+                        comp_augmented.Text(HString(buf));
+                    }
+                    if (comp_gain) {
+                        wchar_t buf[128];
+                        swprintf_s(buf, L"%s: %+.3f%%", strings.training_gain_label.c_str(), event.accuracy_gain * 100.0);
+                        comp_gain.Text(HString(buf));
+                    }
+                    if (comp_selected) {
+                        comp_selected.Text(HString(strings.training_selected_model + event.selected_model));
+                    }
+                    comparison.Visibility(xaml::Visibility::Visible);
+                    return;
+                }
+                if (training_progress && !event.message.empty()) {
+                    training_progress.Text(HString(event.message));
+                }
+            };
+            auto finished_handler = [client, state, strings, training_progress_label,
+                                     training_epoch, training_loss, training_acc, training_time,
+                                     progress_bar, start_time, paused, comparison](
+                                        bool success, const std::wstring& detail) {
+                *paused = false;
+                if (!success) {
+                    if (training_progress_label) {
+                        training_progress_label.Text(HString(strings.ai_training_failed_prefix + detail));
+                    }
+                    AppendActivity(state, HString(strings.ai_training_failed_prefix + detail));
+                    return;
+                }
+                if (training_progress_label) {
+                    training_progress_label.Text(HString(strings.ai_training_completed_prefix + detail));
+                }
+                AppendActivity(state, HString(strings.ai_training_completed_prefix + detail));
+                state->pending_model_import_path = detail;
+                if (client) {
+                    client->RequestModelValidate(detail);
+                    if (state->status) {
+                        state->status.Text(HString(strings.ai_training_import_requested));
+                    }
+                }
+            };
+            if (!training_runner->Start(dispatcher, event_handler, finished_handler, &spawn_error)) {
+                if (state->status) {
+                    state->status.Text(HString(strings.ai_training_spawn_failed_prefix + spawn_error));
+                }
+                AppendActivity(state, HString(strings.ai_training_spawn_failed_prefix + spawn_error));
+                return;
+            }
+            if (training_progress_label) training_progress_label.Text(HString(strings.ai_training_status_running));
+            if (training_epoch) training_epoch.Text(HString(L""));
+            if (training_loss) training_loss.Text(HString(L""));
+            if (training_acc) training_acc.Text(HString(L""));
+            if (training_time) training_time.Text(HString(L""));
+            if (progress_bar) progress_bar.Width(0);
+            if (state->status) state->status.Text(HString(strings.ai_training_status_running));
+            AppendActivity(state, HString(strings.ai_training_status_running));
+        });
+    });
+    // Pause/Resume button.
+    auto pause_resume = CommandButton(HString(strings.training_pause), palette);
+    pause_resume.Click([training_runner, training_progress_label = training_stage_label, training_paused, start_time = training_start_time, strings](auto const&, auto const&) {
+        RunUiSafely(L"AI training pause", [&] {
+            if (!training_runner || !training_runner->IsRunning()) return;
+            if (!*training_paused) {
+                training_runner->Stop();
+                *training_paused = true;
+                if (training_progress_label) training_progress_label.Text(HString(strings.training_status_paused));
+            }
+        });
+    });
+    // Cancel button.
+    auto cancel_training = CommandButton(HString(strings.ai_training_cancel), palette);
+    cancel_training.Click([training_runner, state, strings, training_progress_label = training_stage_label,
+                           progress_bar = progress_inner](auto const&, auto const&) {
+        RunUiSafely(L"AI training cancel", [&] {
+            if (!training_runner || !training_runner->IsRunning()) return;
+            training_runner->Stop();
+            if (training_progress_label) training_progress_label.Text(HString(strings.ai_training_status_cancelled));
+            if (progress_bar) progress_bar.Width(0);
+            AppendActivity(state, HString(strings.ai_training_status_cancelled));
+        });
+    });
+
+    auto button_row = controls::StackPanel();
+    button_row.Orientation(controls::Orientation::Horizontal);
+    button_row.Spacing(8);
+    button_row.Children().Append(start_training);
+    button_row.Children().Append(pause_resume);
+    button_row.Children().Append(cancel_training);
+
+    auto training_controls = controls::StackPanel();
+    training_controls.Spacing(8);
+    training_controls.Children().Append(progress_outer);
+    training_controls.Children().Append(metrics_panel);
+    training_controls.Children().Append(button_row);
+    training_controls.Children().Append(auto_stop_toggle);
+    training_controls.Children().Append(comparison_panel);
+    ai_training_page.Children().Append(Card(training_controls, palette));
+    NotifyWinUiStage(L"BuildMainContent: AI training page ready");
+
+
+    auto settings_page = controls::StackPanel();
+    settings_page.Spacing(10);
+    settings_page.Children().Append(SectionHeading(HString(strings.settings), HString(strings.settings_subtitle), palette));
+    auto settings_style = controls::ComboBox();
+    settings_style.Header(winrt::box_value(HString(strings.appearance)));
+    for (UiStyle candidate : {UiStyle::FluentLight, UiStyle::FluentDark, UiStyle::Aurora,
+                              UiStyle::HighContrast, UiStyle::Glass, UiStyle::Graphite,
+                              UiStyle::Rose}) {
+        settings_style.Items().Append(winrt::box_value(StyleName(candidate, strings)));
+    }
+    settings_style.SelectedIndex(static_cast<int32_t>(style));
+    settings_style.SelectionChanged([on_preferences_changed, language, accent, background_image](auto const& sender, auto const&) {
+        RunUiSafely(L"Settings style selector", [&] {
+            if (!on_preferences_changed) return;
+            const auto picker = sender.template as<controls::ComboBox>();
+            if (picker.SelectedIndex() >= 0) {
+                on_preferences_changed(static_cast<UiStyle>(picker.SelectedIndex()), language, accent, background_image);
+            }
+        });
+    });
+    settings_page.Children().Append(Card(settings_style, palette));
+    auto language_picker = controls::ComboBox();
+    language_picker.Header(winrt::box_value(HString(strings.language)));
+    for (UiLanguage candidate : {UiLanguage::English, UiLanguage::SimplifiedChinese, UiLanguage::TraditionalChinese, UiLanguage::Japanese, UiLanguage::Spanish}) {
+        language_picker.Items().Append(winrt::box_value(HString(LanguageName(candidate))));
+    }
+    language_picker.SelectedIndex(static_cast<int32_t>(language));
+    language_picker.SelectionChanged([on_preferences_changed, style, accent, background_image](auto const& sender, auto const&) {
+        RunUiSafely(L"Language selector", [&] {
+            if (!on_preferences_changed) return;
+            const auto picker = sender.template as<controls::ComboBox>();
+            if (picker.SelectedIndex() >= 0 && picker.SelectedIndex() <= static_cast<int32_t>(UiLanguage::Spanish)) {
+                on_preferences_changed(style, static_cast<UiLanguage>(picker.SelectedIndex()), accent, background_image);
+            }
+        });
+    });
+    settings_page.Children().Append(language_picker);
+    auto accent_picker = controls::ComboBox();
+    accent_picker.Header(winrt::box_value(HString(strings.accent_color)));
+    for (UiAccent candidate : {UiAccent::Blue, UiAccent::Teal, UiAccent::Orange, UiAccent::Violet}) {
+        accent_picker.Items().Append(winrt::box_value(AccentName(candidate)));
+    }
+    accent_picker.SelectedIndex(static_cast<int32_t>(accent));
+    accent_picker.SelectionChanged([on_preferences_changed, style, language, background_image](auto const& sender, auto const&) {
+        RunUiSafely(L"Accent selector", [&] {
+            if (!on_preferences_changed) return;
+            const auto picker = sender.template as<controls::ComboBox>();
+            if (picker.SelectedIndex() >= 0 && picker.SelectedIndex() <= static_cast<int32_t>(UiAccent::Violet)) {
+                on_preferences_changed(style, language, static_cast<UiAccent>(picker.SelectedIndex()), background_image);
+            }
+        });
+    });
+    settings_page.Children().Append(accent_picker);
+    auto background_actions = controls::StackPanel();
+    background_actions.Spacing(8);
+    auto choose_background = CommandButton(HString(strings.choose_background), palette);
+    choose_background.Click([on_preferences_changed, style, language, accent](auto const&, auto const&) {
+        RunUiSafely(L"Pick background image", [&] {
+            if (!on_preferences_changed) return;
+            auto paths = PickFileSystemTargets(false, true);
+            if (!paths.empty()) {
+                on_preferences_changed(style, language, accent, paths.front());
+            }
+        });
+    });
+    auto clear_background = CommandButton(HString(strings.clear_background), palette);
+    clear_background.Click([on_preferences_changed, style, language, accent](auto const&, auto const&) {
+        RunUiSafely(L"Clear background image", [&] {
+            if (on_preferences_changed) {
+                on_preferences_changed(style, language, accent, {});
+            }
+        });
+    });
+    background_actions.Children().Append(Text(HString(strings.background_image), 17, win_text::FontWeights::SemiBold(), Brush(palette.text)));
+    background_actions.Children().Append(choose_background);
+    background_actions.Children().Append(clear_background);
+    settings_page.Children().Append(Card(background_actions, palette));
+
+    auto context_actions = controls::StackPanel();
+    context_actions.Spacing(8);
+    auto install_context = CommandButton(HString(strings.install_context_menu), palette);
+    install_context.Click([state](auto const&, auto const&) {
+        RunUiSafely(L"Install Explorer context menu", [&] {
+            const bool success = RegisterExplorerScanMenu();
+            const auto message = success ? HString(state->strings.context_menu_installed) : HString(L"Could not install right-click scan menu.");
+            if (state->status) state->status.Text(message);
+            AppendActivity(state, message);
+        });
+    });
+    auto remove_context = CommandButton(HString(strings.remove_context_menu), palette);
+    remove_context.Click([state](auto const&, auto const&) {
+        RunUiSafely(L"Remove Explorer context menu", [&] {
+            const bool success = RemoveExplorerScanMenu();
+            const auto message = success ? HString(state->strings.context_menu_removed) : HString(L"Could not remove right-click scan menu.");
+            if (state->status) state->status.Text(message);
+            AppendActivity(state, message);
+        });
+    });
+    context_actions.Children().Append(Text(HString(strings.context_menu), 17, win_text::FontWeights::SemiBold(), Brush(palette.text)));
+    context_actions.Children().Append(install_context);
+    context_actions.Children().Append(remove_context);
+    settings_page.Children().Append(Card(context_actions, palette));
+    auto engine_switches = controls::StackPanel();
+    engine_switches.Spacing(6);
+    engine_switches.Children().Append(Text(
+        HString(strings.scan_engine_switches),
+        17,
+        win_text::FontWeights::SemiBold(),
+        Brush(palette.text)));
+    auto yara_setting = controls::ToggleSwitch();
+    yara_setting.Header(winrt::box_value(HString(strings.yara)));
+    yara_setting.IsOn(feature_state->yara_enabled);
+    yara_setting.Toggled([feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        const auto toggle = sender.template as<controls::ToggleSwitch>();
+        feature_state->yara_enabled = toggle.IsOn();
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    auto heuristic_setting = controls::ToggleSwitch();
+    heuristic_setting.Header(winrt::box_value(HString(strings.heuristic)));
+    heuristic_setting.IsOn(feature_state->heuristic_enabled);
+    heuristic_setting.Toggled([feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        const auto toggle = sender.template as<controls::ToggleSwitch>();
+        feature_state->heuristic_enabled = toggle.IsOn();
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    auto ai_setting = controls::ToggleSwitch();
+    ai_setting.Header(winrt::box_value(HString(strings.ai)));
+    ai_setting.IsOn(feature_state->ai_enabled);
+    ai_setting.Toggled([feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        const auto toggle = sender.template as<controls::ToggleSwitch>();
+        feature_state->ai_enabled = toggle.IsOn();
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    auto sandbox_setting = controls::ToggleSwitch();
+    sandbox_setting.Header(winrt::box_value(HString(strings.sandbox)));
+    sandbox_setting.IsOn(feature_state->sandbox_enabled);
+    sandbox_setting.Toggled([feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        const auto toggle = sender.template as<controls::ToggleSwitch>();
+        feature_state->sandbox_enabled = toggle.IsOn();
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    auto cloud_setting = controls::ToggleSwitch();
+    cloud_setting.Header(winrt::box_value(HString(strings.cloud_scan)));
+    cloud_setting.IsOn(feature_state->cloud_placeholder_enabled);
+    cloud_setting.Toggled([feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        const auto toggle = sender.template as<controls::ToggleSwitch>();
+        feature_state->cloud_placeholder_enabled = toggle.IsOn();
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    engine_switches.Children().Append(yara_setting);
+    engine_switches.Children().Append(heuristic_setting);
+    engine_switches.Children().Append(ai_setting);
+    engine_switches.Children().Append(sandbox_setting);
+    engine_switches.Children().Append(cloud_setting);
+    settings_page.Children().Append(Card(engine_switches, palette));
+
+    auto model_management = controls::StackPanel();
+    model_management.Spacing(8);
+    model_management.Children().Append(Text(
+        HString(strings.ai_model_management),
+        17,
+        win_text::FontWeights::SemiBold(),
+        Brush(palette.text)));
+    model_management.Children().Append(Text(
+        HString(strings.ai_model_description),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    const auto validate_selected_model = [client, state, strings](bool import_after_validation) {
+        RunUiSafely(L"Import ONNX model", [&] {
+            if (!client) {
+                if (state->status) state->status.Text(L"The engine is not connected.");
+                return;
+            }
+            const auto paths = PickFileSystemTargets(false);
+            if (paths.empty()) {
+                return;
+            }
+            const std::filesystem::path selected(paths.front());
+            if (!selected.has_extension()
+                || _wcsicmp(selected.extension().c_str(), L".onnx") != 0) {
+                if (state->status) state->status.Text(L"Please choose an .onnx model file.");
+                return;
+            }
+            state->pending_model_import_path =
+                import_after_validation ? paths.front() : std::wstring{};
+            client->RequestModelValidate(paths.front());
+            if (state->status) state->status.Text(HString(strings.ai_model_validation_requested));
+            AppendActivity(state, HString(strings.ai_model_validation_requested));
+        });
+    };
+    auto validate_model = CommandButton(HString(strings.validate_ai_model), palette);
+    validate_model.Click([validate_selected_model](auto const&, auto const&) {
+        validate_selected_model(false);
+    });
+    model_management.Children().Append(validate_model);
+    auto import_model = CommandButton(HString(strings.import_ai_model), palette);
+    import_model.Click([validate_selected_model](auto const&, auto const&) {
+        validate_selected_model(true);
+    });
+    model_management.Children().Append(import_model);
+    auto model_strategy = controls::ComboBox();
+    model_strategy.Header(winrt::box_value(HString(strings.ai_model_strategy)));
+    model_strategy.Items().Append(winrt::box_value(HString(strings.strategy_weighted_mean)));
+    model_strategy.Items().Append(winrt::box_value(HString(strings.strategy_max_risk)));
+    model_strategy.Items().Append(winrt::box_value(HString(strings.strategy_majority_vote)));
+    model_strategy.SelectedIndex(0);
+    model_strategy.SelectionChanged([client, state](auto const& sender, auto const&) {
+        RunUiSafely(L"AI model strategy selector", [&] {
+            const auto picker = sender.template as<controls::ComboBox>();
+            if (!client || picker.SelectedIndex() < 0 || picker.SelectedIndex() > 2) {
+                return;
+            }
+            const std::array<std::wstring, 3> strategies = {
+                L"weighted_mean", L"max_risk", L"majority_vote"};
+            client->RequestModelStrategy(strategies[static_cast<size_t>(picker.SelectedIndex())]);
+            const auto message = HString(state->strings.ai_model_strategy + L": "
+                + (picker.SelectedIndex() == 0 ? state->strings.strategy_weighted_mean
+                    : picker.SelectedIndex() == 1 ? state->strings.strategy_max_risk
+                    : state->strings.strategy_majority_vote));
+            if (state->status) state->status.Text(message);
+            AppendActivity(state, message);
+        });
+    });
+    model_management.Children().Append(model_strategy);
+    settings_page.Children().Append(Card(model_management, palette));
+    auto settings_options = controls::StackPanel();
+    settings_options.Spacing(8);
+    auto r3_setting = controls::ToggleSwitch();
+    r3_setting.Header(winrt::box_value(HString(strings.r3_protection)));
+    r3_setting.IsOn(feature_state->r3_enabled);
+    r3_setting.Toggled([feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        const auto toggle = sender.template as<controls::ToggleSwitch>();
+        feature_state->r3_enabled = toggle.IsOn();
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    auto driver_setting = controls::ToggleSwitch();
+    driver_setting.Header(winrt::box_value(HString(strings.driver_protection)));
+    driver_setting.IsOn(feature_state->driver_enabled);
+    driver_setting.Toggled([feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        const auto toggle = sender.template as<controls::ToggleSwitch>();
+        feature_state->driver_enabled = toggle.IsOn();
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    auto start_with_windows = controls::ToggleSwitch();
+    start_with_windows.Header(winrt::box_value(HString(strings.start_with_windows)));
+    start_with_windows.IsOn(feature_state->start_with_windows_enabled);
+    start_with_windows.Toggled([state, feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        RunUiSafely(L"Start with Windows toggle", [&] {
+            const auto toggle = sender.template as<controls::ToggleSwitch>();
+            const bool enabled = toggle.IsOn();
+            if (!SetStartWithWindows(enabled)) {
+                toggle.IsOn(feature_state->start_with_windows_enabled);
+                if (state->status) state->status.Text(L"Unable to update Windows startup setting.");
+                return;
+            }
+            feature_state->start_with_windows_enabled = enabled;
+            if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+        });
+    });
+    auto notify = controls::ToggleSwitch();
+    notify.Header(winrt::box_value(HString(strings.notifications)));
+    notify.IsOn(feature_state->notifications_enabled);
+    notify.Toggled([feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        const auto toggle = sender.template as<controls::ToggleSwitch>();
+        feature_state->notifications_enabled = toggle.IsOn();
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    auto translucent = controls::ToggleSwitch();
+    translucent.Header(winrt::box_value(HString(strings.translucent_panels)));
+    translucent.IsOn(feature_state->translucent_panels);
+    translucent.Toggled([feature_state, on_feature_settings_changed](auto const& sender, auto const&) {
+        const auto toggle = sender.template as<controls::ToggleSwitch>();
+        feature_state->translucent_panels = toggle.IsOn();
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    auto transparency_slider = controls::Slider();
+    transparency_slider.Header(winrt::box_value(HString(strings.panel_transparency)));
+    transparency_slider.Minimum(0.0);
+    transparency_slider.Maximum(55.0);
+    transparency_slider.StepFrequency(1.0);
+    transparency_slider.Value(feature_state->transparency_percent);
+    transparency_slider.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
+    auto transparency_value = Text(
+        HString(std::to_wstring(feature_state->transparency_percent) + L"%"),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted));
+    auto update_transparency_value = [feature_state, transparency_value](auto const&, auto const& args) {
+        const auto value = static_cast<uint8_t>(std::clamp(args.NewValue(), 0.0, 55.0));
+        feature_state->transparency_percent = value;
+        transparency_value.Text(HString(std::to_wstring(value) + L"%"));
+    };
+    transparency_slider.ValueChanged(update_transparency_value);
+    auto apply_transparency = CommandButton(HString(strings.apply_transparency), palette);
+    apply_transparency.Click([feature_state, on_feature_settings_changed](auto const&, auto const&) {
+        if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
+    });
+    settings_options.Children().Append(r3_setting);
+    settings_options.Children().Append(driver_setting);
+    settings_options.Children().Append(start_with_windows);
+    settings_options.Children().Append(notify);
+    settings_options.Children().Append(translucent);
+    settings_options.Children().Append(Text(
+        HString(strings.panel_transparency_description),
+        13,
+        win_text::FontWeights::Normal(),
+        Brush(palette.muted)));
+    settings_options.Children().Append(transparency_slider);
+    settings_options.Children().Append(transparency_value);
+    settings_options.Children().Append(apply_transparency);
+    settings_page.Children().Append(Card(settings_options, palette));
+    settings_options.Margin(Inset(0, 0, 0, 0));
+    auto runtime = controls::StackPanel();
+    runtime.Spacing(6);
+    runtime.Children().Append(Text(HString(strings.runtime_diagnostics), 18, win_text::FontWeights::SemiBold(), Brush(palette.text)));
+    runtime.Children().Append(Text(HString(strings.ipc_endpoint_prefix + (client ? client->Endpoint() : strings.not_configured)), 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    runtime.Children().Append(Text(engine_start_error.empty() ? HString(strings.engine_launch_requested) : HString(strings.engine_process_prefix + engine_start_error), 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    settings_page.Children().Append(Card(runtime, palette));
+    NotifyWinUiStage(L"BuildMainContent: settings page ready");
+
+    // 通知中心页面（通知空状态 + 操作按钮）
+    auto notification_page = controls::StackPanel();
+    notification_page.Spacing(10);
+    notification_page.Children().Append(SectionHeading(
+        HString(L"通知中心"), HString(L"暂无通知"), palette));
+    auto notification_empty = controls::Border();
+    notification_empty.CornerRadius(xaml::CornerRadius{20, 20, 20, 20});
+    notification_empty.Background(Brush(palette.card));
+    notification_empty.BorderBrush(Brush(palette.border));
+    notification_empty.BorderThickness(Inset(1));
+    notification_empty.Padding(Inset(32, 48, 32, 48));
+    notification_empty.Margin(Inset(0, 0, 0, 8));
+    auto empty_stack = controls::StackPanel();
+    empty_stack.Spacing(8);
+    empty_stack.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    empty_stack.VerticalAlignment(xaml::VerticalAlignment::Center);
+    auto bell_outline = Text(L"\u26A0", 56, win_text::FontWeights::Normal(), Brush(palette.muted));
+    bell_outline.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    empty_stack.Children().Append(bell_outline);
+    empty_stack.Children().Append(Text(L"暂无通知", 20, win_text::FontWeights::Bold(), Brush(palette.text)));
+    empty_stack.Children().Append(Text(L"暂无通知", 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    notification_empty.Child(empty_stack);
+    notification_page.Children().Append(Card(notification_empty, palette));
+    auto notification_actions = controls::StackPanel();
+    notification_actions.Orientation(controls::Orientation::Horizontal);
+    notification_actions.Spacing(8);
+    notification_actions.Margin(Inset(0, 12, 0, 0));
+    auto read_all_btn = CommandButton(HString(L"全部已读"), palette);
+    notification_actions.Children().Append(read_all_btn);
+    auto clear_all_btn = CommandButton(HString(L"清空全部"), palette);
+    notification_actions.Children().Append(clear_all_btn);
+    notification_page.Children().Append(notification_actions);
+
+    // 设备已受到保护（保护成功状态页）
+    auto protected_device_page = controls::StackPanel();
+    protected_device_page.Spacing(10);
+    protected_device_page.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
+    protected_device_page.VerticalAlignment(xaml::VerticalAlignment::Stretch);
+    protected_device_page.Margin(Inset(20, 20, 20, 20));
+    // 居中主卡片：插画风格（用文字图形模拟笔记本+对勾）
+    auto protected_card = controls::Border();
+    protected_card.CornerRadius(xaml::CornerRadius{24, 24, 24, 24});
+    protected_card.Background(Brush(ColorOf(245, 248, 251))); // 极淡蓝灰
+    protected_card.BorderBrush(Brush(palette.border));
+    protected_card.BorderThickness(Inset(1));
+    protected_card.Padding(Inset(36, 48, 36, 36));
+    protected_card.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    protected_card.VerticalAlignment(xaml::VerticalAlignment::Center);
+    protected_card.Margin(Inset(0, 20, 0, 20));
+    auto protected_stack = controls::StackPanel();
+    protected_stack.Spacing(14);
+    protected_stack.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    protected_stack.VerticalAlignment(xaml::VerticalAlignment::Center);
+    // 插图风格：笔记本 + 对勾
+    auto illustration_row = controls::StackPanel();
+    illustration_row.Orientation(controls::Orientation::Vertical);
+    illustration_row.Spacing(8);
+    illustration_row.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    // 笔记本图形（简化用矩形+圆形）
+    auto laptop_outer = controls::Border();
+    laptop_outer.Width(180);
+    laptop_outer.Height(110);
+    laptop_outer.CornerRadius(xaml::CornerRadius{14, 14, 6, 6});
+    laptop_outer.Background(Brush(ColorOf(30, 41, 59)));
+    laptop_outer.BorderBrush(Brush(palette.border));
+    laptop_outer.BorderThickness(Inset(1));
+    laptop_outer.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    illustration_row.Children().Append(laptop_outer);
+    // 屏幕内容：对勾 + 进度条
+    auto screen = controls::StackPanel();
+    screen.Spacing(6);
+    screen.Margin(Inset(16, 12, 16, 12));
+    screen.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    screen.VerticalAlignment(xaml::VerticalAlignment::Center);
+    auto check_circle = controls::Border();
+    check_circle.Width(48);
+    check_circle.Height(48);
+    check_circle.CornerRadius(xaml::CornerRadius{24, 24, 24, 24});
+    check_circle.Background(Brush(ColorOf(34, 211, 238))); // 青色
+    check_circle.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    auto check_text = Text(L"\u2713", 22, win_text::FontWeights::Bold(), Brush(ColorOf(255, 255, 255)));
+    check_text.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    check_text.VerticalAlignment(xaml::VerticalAlignment::Center);
+    check_circle.Child(check_text);
+    screen.Children().Append(check_circle);
+    auto progress_fill = controls::Border();
+    progress_fill.Height(6);
+    progress_fill.CornerRadius(xaml::CornerRadius{3, 3, 3, 3});
+    progress_fill.Background(Brush(palette.primary));
+    progress_fill.Margin(Inset(20, 8, 20, 0));
+    screen.Children().Append(progress_fill);
+    laptop_outer.Child(screen);
+    protected_stack.Children().Append(illustration_row);
+    protected_stack.Children().Append(Text(L"设备已受到保护", 28, win_text::FontWeights::Bold(), Brush(palette.text)));
+    protected_stack.Children().Append(Text(L"西瓜杀毒使您的电脑免受病毒和网络侵害", 14, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    // 快速扫描按钮（绿色风格，代表安全完成）
+    auto protected_scan_btn = controls::Button();
+    protected_scan_btn.Content(winrt::box_value(HString(strings.quick_scan)));
+    protected_scan_btn.CornerRadius(xaml::CornerRadius{10, 10, 10, 10});
+    protected_scan_btn.Padding(Inset(18, 10, 18, 10));
+    protected_scan_btn.Background(Brush(ColorOf(34, 197, 94))); // 安全绿
+    protected_scan_btn.Foreground(Brush(ColorOf(255, 255, 255)));
+    protected_scan_btn.BorderThickness(Inset(0));
+    protected_scan_btn.Margin(Inset(0, 10, 0, 0));
+    protected_stack.Children().Append(protected_scan_btn);
+    protected_card.Child(protected_stack);
+    protected_device_page.Children().Append(protected_card);
+    // 统计行（类似截图）
+    auto protected_stats = controls::StackPanel();
+    protected_stats.Orientation(controls::Orientation::Horizontal);
+    protected_stats.Spacing(20);
+    protected_stats.Margin(Inset(0, 8, 0, 8));
+    protected_stats.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    protected_stats.Children().Append(Text(L"13  已拦截威胁", 14, win_text::FontWeights::Bold(), Brush(palette.text)));
+    protected_stats.Children().Append(Text(L"521  已扫描文件", 14, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    protected_stats.Children().Append(Text(L"106  已保护天数", 14, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    protected_device_page.Children().Append(protected_stats);
+    // 底部状态栏（版本 + 更新 + 引擎状态）
+    auto protected_footer = controls::StackPanel();
+    protected_footer.Orientation(controls::Orientation::Horizontal);
+    protected_footer.Spacing(16);
+    protected_footer.Margin(Inset(0, 12, 0, 0));
+    protected_footer.Children().Append(Text(L"病毒库版本 1.0.3", 12, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    protected_footer.Children().Append(Text(L"·  上次更新 2026-07-18 10:43:31", 11, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    protected_footer.Children().Append(Text(L"·  引擎状态  正常", 11, win_text::FontWeights::SemiBold(), Brush(palette.primary)));
+    protected_device_page.Children().Append(protected_footer);
+
+// Restore non-visual state after all threat/sandbox controls have been
+    // created. The same snapshot is shared with the next rebuild, so this is
+    // safe for theme, accent, language and background changes.
+    RebuildThreatViews(state);
+    RebuildAttackChainViews(state);
+    if (state->sandbox_analysis && !restored_sandbox_analysis.empty()) {
+        state->sandbox_analysis.Text(HString(restored_sandbox_analysis));
+    }
+    RefreshStatistics(state);
+
+    auto page_host = controls::Grid();
+    page_host.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
+    page_host.VerticalAlignment(xaml::VerticalAlignment::Stretch);
+
+    auto pages = std::make_shared<std::vector<NavigationPage>>(std::initializer_list<NavigationPage>{
+        {HString(strings.dashboard), HString(strings.dashboard_header), dashboard},
+        {HString(strings.scan), HString(strings.scan), scan_page},
+        {HString(strings.protection), HString(strings.protection), protection_page},
+        {HString(strings.threats), HString(strings.threats), threats_page},
+        {L"通知中心", L"通知中心", notification_page},
+        {L"设备已受到保护", L"设备已受到保护", protected_device_page},
+        {HString(strings.attack_chain), HString(strings.attack_chain_header), attack_chain_page},
+        {HString(strings.activity), HString(strings.activity), activity_page},
+        {HString(strings.updates), HString(strings.updates), updates_page},
+        {HString(strings.ai_training), HString(strings.ai_training), ai_training_page},
+        {HString(strings.settings), HString(strings.settings), settings_page},
+    });
+    if (const size_t page_limit = DiagnosticPageLimit(pages->size()); page_limit < pages->size()) {
+        pages->resize(page_limit);
+        NotifyWinUiStage(L"BuildMainContent: diagnostic page limit="
+            + std::to_wstring(page_limit));
+    }
+    for (size_t index = 0; index < pages->size(); ++index) {
+        auto page_content = (*pages)[index].content;
+        page_content.Visibility(index == 0 ? xaml::Visibility::Visible : xaml::Visibility::Collapsed);
+        page_host.Children().Append(page_content);
+    }
+    NotifyWinUiStage(L"BuildMainContent: page table ready");
+
+    const auto navigation_dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    nav.Children().Append(Text(HString(strings.workspace), 12, win_text::FontWeights::SemiBold(), Brush(palette.sidebar_text)));
+    for (size_t page_index = 0; page_index < pages->size(); ++page_index) {
+        const auto nav_label = (*pages)[page_index].nav_label;
+        // 为每个页面配一个简单图标字符（统一风格，不引入图片资源）
+        winrt::hstring glyph = L" \u25A0"; // 默认小方块
+        std::wstring label_str = std::wstring(nav_label.c_str());
+        if (label_str.find(L"概览") != std::wstring::npos || label_str.find(L"dashboard") != std::wstring::npos) glyph = L"\u2302"; // \u2302 = house? use \u2302 (home icon glyph) — but safer: \u1F3E0 for home
+        else if (label_str.find(L"扫描") != std::wstring::npos || label_str.find(L"scan") != std::wstring::npos) glyph = L"\u269B"; // atom / virus-like circle
+        else if (label_str.find(L"保护") != std::wstring::npos || label_str.find(L"protection") != std::wstring::npos) glyph = L"\u1F6E1"; // shield
+        else if (label_str.find(L"威胁") != std::wstring::npos || label_str.find(L"threat") != std::wstring::npos) glyph = L"\u26A0"; // warning
+        else if (label_str.find(L"通知") != std::wstring::npos || label_str.find(L"通知中心") != std::wstring::npos) glyph = L"\u1F514"; // bell circle
+        else if (label_str.find(L"设置") != std::wstring::npos) glyph = L"\u2699"; // gear
+        else if (label_str.find(L"攻击链") != std::wstring::npos) glyph = L"\u26D4"; // stop circle
+        else if (label_str.find(L"活动") != std::wstring::npos) glyph = L"\u270F"; // pencil/check
+        else if (label_str.find(L"更新") != std::wstring::npos) glyph = L"\u21BA"; // refresh
+        else if (label_str.find(L"AI") != std::wstring::npos || label_str.find(L"训练") != std::wstring::npos) glyph = L"\u269D"; // flag/star
+        // 用 StackPanel 包装图标+文字，形成侧边栏行样式
+        auto row = controls::StackPanel();
+        row.Orientation(controls::Orientation::Horizontal);
+        row.Spacing(10);
+        row.Margin(Inset(0, 0, 0, 4));
+        // 图标小圆圈
+        auto icon_bg = controls::Border();
+        icon_bg.CornerRadius(xaml::CornerRadius{8, 8, 8, 8});
+        icon_bg.Width(32);
+        icon_bg.Height(32);
+        icon_bg.Background(Brush(palette.sidebar));
+        icon_bg.BorderBrush(Brush(palette.border));
+        icon_bg.BorderThickness(Inset(1));
+        icon_bg.VerticalAlignment(xaml::VerticalAlignment::Center);
+        auto icon_text = Text(glyph, 12, win_text::FontWeights::Normal(), Brush(palette.primary));
+        icon_bg.Child(icon_text);
+        row.Children().Append(icon_bg);
+        // 文字标签
+        auto label_text = Text(nav_label, 13, win_text::FontWeights::SemiBold(), Brush(palette.text));
+        label_text.VerticalAlignment(xaml::VerticalAlignment::Center);
+        row.Children().Append(label_text);
+        // 选中状态用小圆点指示（简化）
+        auto pill_indicator = controls::Border();
+        pill_indicator.CornerRadius(xaml::CornerRadius{4, 4, 4, 4});
+        pill_indicator.Width(4);
+        pill_indicator.Height(28);
+        pill_indicator.Margin(Inset(-8, 0, 0, 0));
+        pill_indicator.Background(Brush(palette.primary));
+        row.Children().Append(pill_indicator);
+        // 按钮容器（透明背景，整行可点击）
+        auto item = controls::Button();
+        item.Content(winrt::box_value(row));
+        item.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
+        item.HorizontalContentAlignment(xaml::HorizontalAlignment::Left);
+        item.Padding(Inset(10, 10, 14, 10));
+        item.Background(Brush(palette.sidebar));
+        item.Foreground(Brush(palette.sidebar_text));
+        item.BorderBrush(Brush(palette.border));
+        item.BorderThickness(Inset(0));
+        item.CornerRadius(xaml::CornerRadius{10, 10, 10, 10});
+        item.Margin(Inset(0, 0, 6, 4));
+        item.Click([header_title, pages, page_index, navigation_dispatcher](auto const&, auto const&) {
+            RunUiSafely(L"Navigation button", [header_title, pages, page_index, navigation_dispatcher] {
+                NotifyWinUiStage(L"Navigation: handler entered");
+                if (page_index >= pages->size()) {
+                    NotifyWinUiStage(L"Navigation: page index out of range");
+                    return;
+                }
+                header_title.Text((*pages)[page_index].header);
+                NotifyWinUiStage(L"Navigation: header updated");
+                auto switch_page = [pages, page_index] {
+                    RunUiSafely(L"Navigation switch visibility", [pages, page_index] {
+                        for (size_t index = 0; index < pages->size(); ++index) {
+                            const bool selected = index == page_index;
+                            (*pages)[index].content.Visibility(
+                                selected ? xaml::Visibility::Visible : xaml::Visibility::Collapsed);
+                        }
+                        NotifyWinUiStage(L"Navigation: page visibility switched");
+                    });
+                };
+                if (!navigation_dispatcher) {
+                    switch_page();
+                    return;
+                }
+                if (!navigation_dispatcher.TryEnqueue(std::move(switch_page))) {
+                    NotifyWinUiStage(L"Navigation: dispatcher rejected page switch");
+                }
+            });
+        });
+        nav.Children().Append(item);
+    }
+
+    auto content = controls::Grid();
+    content.RowDefinitions().Append(controls::RowDefinition());
+    auto content_row = controls::RowDefinition();
+    content_row.Height(xaml::GridLengthHelper::FromValueAndType(1, xaml::GridUnitType::Star));
+    content.RowDefinitions().Clear();
+    content.RowDefinitions().Append(content_row);
+    content.Children().Append(page_host);
+    body.Children().Append(content);
+
+// Full-width window control strip. The window is borderless, so this is
+    // the drag region (SetTitleBar) and hosts the in-canvas window buttons.
+    auto caption = controls::Grid();
+    // Soft vertical glow instead of a flat band; the bottom hairline keeps the
+    // liquid-crystal buttons visually seated on every theme.
+    const auto sidebar_color = palette.sidebar;
+    auto lift_channel = [](uint8_t value, int amount) -> uint8_t {
+        return static_cast<uint8_t>(std::clamp(static_cast<int>(value) + amount, 0, 255));
+    };
+    auto caption_glow = media::LinearGradientBrush();
+    caption_glow.StartPoint(winrt::Windows::Foundation::Point{0, 0});
+    caption_glow.EndPoint(winrt::Windows::Foundation::Point{0, 1});
+    media::GradientStop glow_top;
+    glow_top.Color(ColorOf(
+        lift_channel(sidebar_color.R, 16),
+        lift_channel(sidebar_color.G, 16),
+        lift_channel(sidebar_color.B, 16),
+        sidebar_color.A));
+    glow_top.Offset(0.0);
+    media::GradientStop glow_base;
+    glow_base.Color(sidebar_color);
+    glow_base.Offset(1.0);
+    caption_glow.GradientStops().Append(glow_top);
+    caption_glow.GradientStops().Append(glow_base);
+    caption.Background(caption_glow);
+    caption.BorderThickness(Inset(0, 0, 0, 1));
+    caption.BorderBrush(Brush(palette.dark ? ColorOf(255, 255, 255, 46) : ColorOf(15, 23, 42, 34)));
+    controls::Grid::SetRow(caption, 0);
+    controls::Grid::SetColumnSpan(caption, 2);
+    auto caption_brand_column = controls::ColumnDefinition();
+    caption_brand_column.Width(xaml::GridLengthHelper::FromValueAndType(1, xaml::GridUnitType::Star));
+    caption.ColumnDefinitions().Append(caption_brand_column);
+    auto caption_actions_column = controls::ColumnDefinition();
+    caption_actions_column.Width(xaml::GridLengthHelper::Auto());
+    caption.ColumnDefinitions().Append(caption_actions_column);
+
+    auto caption_brand = Text(HString(strings.app_subtitle), 12, win_text::FontWeights::SemiBold(), Brush(palette.sidebar_text));
+    caption_brand.Margin(Inset(18, 0, 0, 0));
+    caption_brand.VerticalAlignment(xaml::VerticalAlignment::Center);
+    caption.Children().Append(caption_brand);
+
+    auto caption_actions = controls::StackPanel();
+    caption_actions.Orientation(controls::Orientation::Horizontal);
+    controls::Grid::SetColumn(caption_actions, 1);
+    caption.Children().Append(caption_actions);
+
+    const HWND native_window = native_window_provider ? native_window_provider() : nullptr;
+    const bool zoomed = native_window != nullptr && IsZoomed(native_window) != FALSE;
+    auto with_alpha = [](Color color, uint8_t alpha) -> Color {
+        color.A = alpha;
+        return color;
+    };
+    auto glass_state = [palette, with_alpha](bool danger, uint8_t level) {
+        struct CaptionGlass {
+            media::SolidColorBrush fill;
+            media::SolidColorBrush rim;
+        };
+        const uint8_t white_alpha = level == 0 ? uint8_t{24} : (level == 1 ? uint8_t{52} : uint8_t{92});
+        const uint8_t white_rim = level == 0 ? uint8_t{56} : (level == 1 ? uint8_t{110} : uint8_t{180});
+        const uint8_t light_rim = level == 0 ? uint8_t{110} : (level == 1 ? uint8_t{170} : uint8_t{235});
+        const uint8_t red_alpha = level == 0 ? uint8_t{54} : (level == 1 ? uint8_t{82} : uint8_t{116});
+        CaptionGlass out;
+        if (danger) {
+            out.fill = media::SolidColorBrush(ColorOf(225, 29, 72, red_alpha));
+            out.rim = media::SolidColorBrush(ColorOf(255, 255, 255, palette.dark ? white_rim : light_rim));
+        } else if (palette.dark) {
+            out.fill = media::SolidColorBrush(ColorOf(255, 255, 255, white_alpha));
+            out.rim = media::SolidColorBrush(ColorOf(255, 255, 255, white_rim));
+        } else {
+            const uint8_t accent_alpha = level == 0 ? uint8_t{34} : (level == 1 ? uint8_t{74} : uint8_t{120});
+            out.fill = media::SolidColorBrush(with_alpha(palette.primary, accent_alpha));
+            out.rim = media::SolidColorBrush(ColorOf(255, 255, 255, light_rim));
+        }
+        return out;
+    };
+    auto window_button = [palette, &caption_actions, glass_state](winrt::hstring const& glyph, bool danger) {
+        const auto idle = glass_state(danger, 0);
+        const auto hover = glass_state(danger, 1);
+        const auto pressed = glass_state(danger, 2);
+        auto button = controls::Button();
+        auto icon = controls::FontIcon();
+        icon.Glyph(glyph);
+        icon.FontSize(11);
+        icon.Foreground(Brush(danger
+            ? (palette.dark ? ColorOf(248, 113, 113) : ColorOf(190, 18, 60))
+            : palette.sidebar_text));
+        button.Content(icon);
+        button.Width(40);
+        button.Height(30);
+        button.Padding(Inset(0));
+        button.Margin(Inset(0, 3, 3, 3));
+        button.VerticalAlignment(xaml::VerticalAlignment::Center);
+        button.Background(idle.fill);
+        button.BorderBrush(idle.rim);
+        button.BorderThickness(Inset(1));
+        button.CornerRadius(xaml::CornerRadius{9, 9, 9, 9});
+        button.PointerEntered([button, hover](winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&) {
+            RunUiSafely(L"Caption button enter", [button, hover] {
+                button.Background(hover.fill);
+                button.BorderBrush(hover.rim);
+            });
+        });
+        button.PointerExited([button, idle](winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&) {
+            RunUiSafely(L"Caption button exit", [button, idle] {
+                button.Background(idle.fill);
+                button.BorderBrush(idle.rim);
+            });
+        });
+        button.PointerPressed([button, pressed](winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&) {
+            RunUiSafely(L"Caption button press", [button, pressed] {
+                button.Background(pressed.fill);
+                button.BorderBrush(pressed.rim);
+            });
+        });
+        button.PointerReleased([button, hover](winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&) {
+            RunUiSafely(L"Caption button release", [button, hover] {
+                button.Background(hover.fill);
+                button.BorderBrush(hover.rim);
+            });
+        });
+        button.PointerCanceled([button, idle](winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&) {
+            RunUiSafely(L"Caption button cancel", [button, idle] {
+                button.Background(idle.fill);
+                button.BorderBrush(idle.rim);
+            });
+        });
+        caption_actions.Children().Append(button);
+        return std::make_pair(button, icon);
+    };
+
+    auto hamburger_pair = window_button(L"\u2630", false); // hamburger
+    hamburger_pair.second.Margin(Inset(0, 0, 6, 0));
+    hamburger_pair.first.Click([pages, page_index_ref = std::make_shared<size_t>(0)](auto const&, auto const&) {
+        // 折叠/展开侧边栏：简单切换第一列宽度（演示效果）
+        RunUiSafely(L"Sidebar toggle", [&] {
+            // 由于布局是静态构建，实际折叠需要重构布局；此处仅做占位演示
+            AppendLog(nullptr, HString(L"Sidebar collapsed (placeholder)"));
+        });
+    });
+    caption_actions.Children().Append(hamburger_pair.first);
+
+    auto bell_pair = window_button(L"\u1F514", false); // 通知铃铛
+    bell_pair.second.Margin(Inset(0, 0, 6, 0));
+    bell_pair.first.Click([pages](auto const&, auto const&) {
+        RunUiSafely(L"Notification bell", [&] {
+            for (size_t i = 0; i < pages->size(); ++i) {
+                const auto label_str = std::wstring((*pages)[i].nav_label.c_str());
+                if (label_str.find(L"通知中心") != std::wstring::npos) {
+                    // 这里无法直接访问外部 dispatcher，但可通过重构实现；先做占位提示
+                    AppendLog(nullptr, HString(L"Navigate to notifications"));
+                    break;
+                }
+            }
+        });
+    });
+    caption_actions.Children().InsertAt(0, bell_pair.first);
+
+    auto minimize_pair = window_button(L"\uE921", false);
+    controls::ToolTipService::SetToolTip(minimize_pair.first, winrt::box_value(HString(strings.window_minimize)));
+    minimize_pair.first.Click([native_window](auto const&, auto const&) {
+        RunUiSafely(L"Window minimize button", [native_window] {
+            if (native_window != nullptr) {
+                ShowWindow(native_window, SW_MINIMIZE);
+            }
+        });
+    });
+
+    auto maximize_pair = window_button(zoomed ? L"\uE923" : L"\uE922", false);
+    controls::ToolTipService::SetToolTip(maximize_pair.first, winrt::box_value(HString(strings.window_maximize)));
+    maximize_pair.first.Click([native_window, maximize_pair](auto const&, auto const&) {
+        RunUiSafely(L"Window maximize button", [native_window, maximize_pair] {
+            if (native_window == nullptr) {
+                return;
+            }
+            if (IsZoomed(native_window) != FALSE) {
+                ShowWindow(native_window, SW_RESTORE);
+                maximize_pair.second.Glyph(L"\uE922");
+            } else {
+                ShowWindow(native_window, SW_MAXIMIZE);
+                maximize_pair.second.Glyph(L"\uE923");
+            }
+        });
+    });
+
+    auto close_pair = window_button(L"\uE8BB", true);
+    controls::ToolTipService::SetToolTip(close_pair.first, winrt::box_value(HString(strings.window_close)));
+    close_pair.first.Click([on_close_caption](auto const&, auto const&) {
+        RunUiSafely(L"Window close button", [on_close_caption] {
+            if (on_close_caption) {
+                on_close_caption();
+            }
+        });
+    });
+
+    if (on_caption_ready) {
+        on_caption_ready(caption);
+    }
+    root.Children().Append(caption);
+    controls::Grid::SetRow(sidebar, 1);
+    root.Children().Append(sidebar);
+    controls::Grid::SetRow(body_scroll, 1);
+    root.Children().Append(body_scroll);
+
+    ConfigureEngineCallbacks(
+        client,
+        state,
+        std::move(on_realtime_threat),
+        std::move(on_sandbox_analysis),
+        feature_state,
+        on_feature_settings_changed);
+    RefreshStatistics(state);
+    if (state->scan_active) {
+        UpdateScanIndicator(state);
+        const double percent = state->total_files == 0
+            ? 0.0
+            : std::min(
+                  100.0,
+                  100.0 * static_cast<double>(state->files_processed)
+                      / static_cast<double>(state->total_files));
+        if (state->total_files == 0 || state->files_processed == 0) {
+            SetProgressPending(state, strings.scan_waiting_for_engine);
+        } else {
+            SetProgressVisual(state, percent);
+        }
+        UpdateElapsedVisual(state);
+    }
+    NotifyWinUiStage(L"BuildMainContent: complete");
+    return root;
+}
+
+} // namespace heliosav::gui
