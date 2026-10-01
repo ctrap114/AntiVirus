@@ -74,13 +74,3 @@ Everbloom Security 是一个面向 Windows 桌面的杀毒软件工程原型，�
 5. **透明面板与背景图**：`feature_settings.translucent_panels` 控制卡片透明度（0-55%）；`background_image` 可选择自定义背景
 6. **AI 训练**：`tools/train_ember_2018.py` 和 `tools/train_ember_2025.py` 提供两种训练脚本；`gui/winui/WinUIApp.cpp` 中的 `ai_training_page` 提供可视化训练控制（暂停/取消/自动停止、模型比较、ONNX 导入验证）
 
-## 文件结构说明（适合提交的代码）
-
-本次提交包含三个核心修改文件（与原项目差异最小、功能完整）：
-- `gui/winui/WinUIApp.cpp` / `.h`：GUI 重构（风格、布局、页面、标题栏、拦截弹窗、设备受保护状态、通知中心）
-- `tools/train_ember_2018.py`：EMBER 数据集真实特征映射与模型训练脚本修复
-- `.learn` 文件（构建环境记录，未提交）和 `.github/workflows`（CI 流程，已存在）
-
-构建缓存（`artifacts/**/cmake/`、`target/`、`build/`、`.pytest_cache/`、`__pycache__/`、`EverbloomSecurity-1.0.0-Windows-onnx-converter.msi`、`dist-verified/`、`vcpkg/downloads/` 等）已在 `.gitignore` 中排除，不应提交到仓库。
-
-如需继续开发（运行时深度测试、扫描实时统计绑定、状态动画优化、打包安装程序测试、代码提交与 CI 流程验证），继续说“继续”。
