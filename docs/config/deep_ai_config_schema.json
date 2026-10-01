@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "description": "Configuration for deep learning multi-modal assistant.",
+  "properties": {
+    "model_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Path"
+    },
+    "image_size": {
+      "default": 128,
+      "title": "Image Size",
+      "type": "integer"
+    },
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    }
+  },
+  "title": "DeepAIConfig",
+  "type": "object"
+}

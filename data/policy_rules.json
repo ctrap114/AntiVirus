@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "everbloom-quarantine-sample-process",
+      "kind": "process",
+      "target": "C:\\ProgramData\\EverbloomSecurity\\quarantine\\blocked-sample.exe",
+      "action": "block",
+      "enabled": true
+    },
+    {
+      "id": "everbloom-quarantine-sample-file",
+      "kind": "file",
+      "target": "C:\\ProgramData\\EverbloomSecurity\\quarantine\\blocked-sample.exe",
+      "action": "block",
+      "enabled": true
+    },
+    {
+      "id": "everbloom-documentation-network-test",
+      "kind": "network",
+      "address": "192.0.2.1",
+      "port": 443,
+      "action": "block",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "sample-blocked-process",
+      "kind": "process",
+      "target": "C:\\Temp\\EverbloomSecurity\\blocked-sample.exe",
+      "action": "block",
+      "enabled": false
+    },
+    {
+      "id": "sample-blocked-file",
+      "kind": "file",
+      "target": "C:\\Temp\\EverbloomSecurity\\blocked-sample.exe",
+      "action": "block",
+      "enabled": false
+    },
+    {
+      "id": "documentation-network-example",
+      "kind": "network",
+      "address": "192.0.2.1",
+      "port": 443,
+      "action": "block",
+      "enabled": false
+    },
+    {
+      "id": "protected-registry-example",
+      "kind": "registry",
+      "target": "\\REGISTRY\\MACHINE\\SOFTWARE\\EverbloomSecurity",
+      "action": "block",
+      "enabled": false
+    },
+    {
+      "id": "protected-mbr-example",
+      "kind": "raw_disk",
+      "target": "\\Device\\Harddisk0\\DR0",
+      "action": "block",
+      "enabled": false
+    }
+  ]
+}

@@ -1,0 +1,1302 @@
+{
+  "feature_dim": 2381,
+  "sample_count": 162,
+  "metadata": [
+    {
+      "sha256": "07f219d022f5b2fdc75f455d6dc7df35ebdcfcb2dcd0a14c59827c64eefc9b70",
+      "label": 0,
+      "family": "",
+      "file_size": 394040,
+      "timestamp": 1788653842,
+      "file_path": "E:\\HeliosAV\\HeliosAV\\artifacts\\gui\\bin\\Microsoft.WindowsAppRuntime.Bootstrap.dll"
+    },
+    {
+      "sha256": "d7cf08382b1dd18200dc9a9a51256958222f796427c5551878c267e3cf200405",
+      "label": 0,
+      "family": "",
+      "file_size": 32635392,
+      "timestamp": 1788653869,
+      "file_path": "E:\\HeliosAV\\HeliosAV\\artifacts\\gui\\bin\\heliosav_engine.exe"
+    },
+    {
+      "sha256": "1af182c119ed77d1ba93c9630f2617c87b8117a1c12da421edbef8519557e23a",
+      "label": 0,
+      "family": "",
+      "file_size": 1984512,
+      "timestamp": 1788653872,
+      "file_path": "E:\\HeliosAV\\HeliosAV\\artifacts\\gui\\bin\\heliosav_gui.exe"
+    },
+    {
+      "sha256": "c68f10ddd421129dd1f226e12c8edc6d3f948b3f578cf8584ea9e37d7131dc6b",
+      "label": 0,
+      "family": "",
+      "file_size": 1876544,
+      "timestamp": 1788653873,
+      "file_path": "C:\\Windows\\System32\\360SecLogon64.dll"
+    },
+    {
+      "sha256": "c4264495bbf61b965645589d5070cf26d0b4cfa464bdda8417d754863a8e9648",
+      "label": 0,
+      "family": "",
+      "file_size": 471552,
+      "timestamp": 1788653873,
+      "file_path": "C:\\Windows\\System32\\aadauthhelper.dll"
+    },
+    {
+      "sha256": "3f3eaa6edf95a8ac70baa9fb04f700c06938d169b9d43b89ca9de2e7bb2e51ce",
+      "label": 0,
+      "family": "",
+      "file_size": 1091072,
+      "timestamp": 1788653874,
+      "file_path": "C:\\Windows\\System32\\aadcloudap.dll"
+    },
+    {
+      "sha256": "d1aaf66f2726598d6a1859a4977e45c95b1c943d4b7154167e73e95a5b27d6fd",
+      "label": 0,
+      "family": "",
+      "file_size": 98816,
+      "timestamp": 1788653874,
+      "file_path": "C:\\Windows\\System32\\aadjcsp.dll"
+    },
+    {
+      "sha256": "1b7cc6f35aea83d7734e65fdbe8f93cbf55deda9b9d9ece42cf7127a41f9fdcb",
+      "label": 0,
+      "family": "",
+      "file_size": 1574400,
+      "timestamp": 1788653875,
+      "file_path": "C:\\Windows\\System32\\aadtb.dll"
+    },
+    {
+      "sha256": "8f1f6a7c5176ba18563d20b6752238e13d9927182bb1a261a8751de56ffb6ae8",
+      "label": 0,
+      "family": "",
+      "file_size": 199624,
+      "timestamp": 1788653875,
+      "file_path": "C:\\Windows\\System32\\aadWamExtension.dll"
+    },
+    {
+      "sha256": "25f44901e8c28b127b402004e1e5d080c22022a397769fbc68d565ef42669392",
+      "label": 0,
+      "family": "",
+      "file_size": 461824,
+      "timestamp": 1788653876,
+      "file_path": "C:\\Windows\\System32\\AarSvc.dll"
+    },
+    {
+      "sha256": "85de28979b7f15dcf7c4a7ba12c040a2babdd9ced1ae28e14b567bc9e2d6ac7f",
+      "label": 0,
+      "family": "",
+      "file_size": 651680,
+      "timestamp": 1788653876,
+      "file_path": "C:\\Windows\\System32\\AboutSettingsHandlers.dll"
+    },
+    {
+      "sha256": "5a5a1ff49129eda71c1cbee627bea784fb6c565b1513a60ae20912807dffc890",
+      "label": 0,
+      "family": "",
+      "file_size": 419328,
+      "timestamp": 1788653876,
+      "file_path": "C:\\Windows\\System32\\AboveLockAppHost.dll"
+    },
+    {
+      "sha256": "fa541ca7005520872e0980ba4da93ba01dac61d222d31eba3551f3b896290df2",
+      "label": 0,
+      "family": "",
+      "file_size": 281088,
+      "timestamp": 1788653877,
+      "file_path": "C:\\Windows\\System32\\accessibilitycpl.dll"
+    },
+    {
+      "sha256": "886375efd78925159a73dc6ccaa10c8ada5b7042449cba34f697da2218af46e6",
+      "label": 0,
+      "family": "",
+      "file_size": 274432,
+      "timestamp": 1788653877,
+      "file_path": "C:\\Windows\\System32\\accountaccessor.dll"
+    },
+    {
+      "sha256": "f0097e52b385de5938240935561033e5c11de1fffb733d2e9b4bd5d1d34a0c50",
+      "label": 0,
+      "family": "",
+      "file_size": 435712,
+      "timestamp": 1788653877,
+      "file_path": "C:\\Windows\\System32\\AccountsRt.dll"
+    },
+    {
+      "sha256": "d0bde3efcc6299149dc67a6285c63a214f70be2abe2997e5011b7cec64255872",
+      "label": 0,
+      "family": "",
+      "file_size": 381952,
+      "timestamp": 1788653878,
+      "file_path": "C:\\Windows\\System32\\AcGenral.dll"
+    },
+    {
+      "sha256": "5620f93cbde964ed16b7f3fadc74751e1867447a625da8593424ee3c2e0e7b8e",
+      "label": 0,
+      "family": "",
+      "file_size": 333312,
+      "timestamp": 1788653878,
+      "file_path": "C:\\Windows\\System32\\AcLayers.dll"
+    },
+    {
+      "sha256": "3eb8820c58422c39340787ab5d418155cb105e52686ba1f13fdb74ff710935dd",
+      "label": 0,
+      "family": "",
+      "file_size": 588288,
+      "timestamp": 1788653878,
+      "file_path": "C:\\Windows\\System32\\aclui.dll"
+    },
+    {
+      "sha256": "5819d9e45d7ef2b615ede64e4660a58d08e9b3da65d497879469df69377f7843",
+      "label": 0,
+      "family": "",
+      "file_size": 656256,
+      "timestamp": 1788653879,
+      "file_path": "C:\\Windows\\System32\\acmigration.dll"
+    },
+    {
+      "sha256": "e63a7ca4c3a4af580acf510b89457f6277688bc872edbc47cb5964abdc7d9e31",
+      "label": 0,
+      "family": "",
+      "file_size": 214016,
+      "timestamp": 1788653879,
+      "file_path": "C:\\Windows\\System32\\ACPBackgroundManagerPolicy.dll"
+    },
+    {
+      "sha256": "c6473ebebb837d6a5a754fe3b20a0df7bcf0fc1956e57deb34ccb3c2bbc81e8b",
+      "label": 0,
+      "family": "",
+      "file_size": 118496,
+      "timestamp": 1788653879,
+      "file_path": "C:\\Windows\\System32\\AcpiServiceVnA64.dll"
+    },
+    {
+      "sha256": "010b53fc36d2af1f90d0eba217cf48f0325736dc9f5abf1f4f5495c9914fc8f5",
+      "label": 0,
+      "family": "",
+      "file_size": 123392,
+      "timestamp": 1788653880,
+      "file_path": "C:\\Windows\\System32\\acppage.dll"
+    },
+    {
+      "sha256": "35baad73ba5d1fed20e9d9d8178e6fcb5c08e16007e454d2f1165d5513abb281",
+      "label": 0,
+      "family": "",
+      "file_size": 81920,
+      "timestamp": 1788653880,
+      "file_path": "C:\\Windows\\System32\\AcSpecfc.dll"
+    },
+    {
+      "sha256": "6a158bf2dd6baa53b1422aca5950dfe20a6cd1e0d0d3d6d454c8da9a9483a97f",
+      "label": 0,
+      "family": "",
+      "file_size": 322048,
+      "timestamp": 1788653880,
+      "file_path": "C:\\Windows\\System32\\ActionCenter.dll"
+    },
+    {
+      "sha256": "f3638ff7f4dac1486b0ae7112a0299032926dd9c53575bf6a4312658f8bcbb1d",
+      "label": 0,
+      "family": "",
+      "file_size": 166400,
+      "timestamp": 1788653880,
+      "file_path": "C:\\Windows\\System32\\ActionCenterCPL.dll"
+    },
+    {
+      "sha256": "f7f95c36c3986fda91460cf51f2d33a738827d43faa418bdd108ccdafd8dd59f",
+      "label": 0,
+      "family": "",
+      "file_size": 190944,
+      "timestamp": 1788653880,
+      "file_path": "C:\\Windows\\System32\\ActionQueue.dll"
+    },
+    {
+      "sha256": "1ab8496c48dbbb50c4d3b26bc08f2503eaf548bbffdd028a9cf6dc0185e3e0a4",
+      "label": 0,
+      "family": "",
+      "file_size": 56320,
+      "timestamp": 1788653880,
+      "file_path": "C:\\Windows\\System32\\ActivationClient.dll"
+    },
+    {
+      "sha256": "66cb9544f208d0d8b368ddbd22ffb6124465a078737460a7c2ba9bba46252ba7",
+      "label": 0,
+      "family": "",
+      "file_size": 801280,
+      "timestamp": 1788653881,
+      "file_path": "C:\\Windows\\System32\\ActivationManager.dll"
+    },
+    {
+      "sha256": "76b51e23c0b0768500cc45bf3832e9464d941f8cae6052cf31ed97df2d3ef5c9",
+      "label": 0,
+      "family": "",
+      "file_size": 274432,
+      "timestamp": 1788653881,
+      "file_path": "C:\\Windows\\System32\\activeds.dll"
+    },
+    {
+      "sha256": "9e93027c467d479da118f5da269a003786386dcf8b4d0526f5d4b93f0ace1b9b",
+      "label": 0,
+      "family": "",
+      "file_size": 103424,
+      "timestamp": 1788653881,
+      "file_path": "C:\\Windows\\System32\\ActiveSyncCsp.dll"
+    },
+    {
+      "sha256": "4ef9b2e7a0bfe36aaf1d2205fa72e3c82a3a7d43a26018535887e4f9bf1d9e30",
+      "label": 0,
+      "family": "",
+      "file_size": 1707520,
+      "timestamp": 1788653883,
+      "file_path": "C:\\Windows\\System32\\ActiveSyncProvider.dll"
+    },
+    {
+      "sha256": "8c84e525e41a5b7cd83ce485fd00a0b07a5da0bbf4b5c338cfee824fb7020d2f",
+      "label": 0,
+      "family": "",
+      "file_size": 646144,
+      "timestamp": 1788653883,
+      "file_path": "C:\\Windows\\System32\\actxprxy.dll"
+    },
+    {
+      "sha256": "dc56103a79f833c17252db87d7a8e38d862949ac4f5ee35ebc3258e99c4d7a8f",
+      "label": 0,
+      "family": "",
+      "file_size": 68608,
+      "timestamp": 1788653883,
+      "file_path": "C:\\Windows\\System32\\AcWinRT.dll"
+    },
+    {
+      "sha256": "8d462c54c4f8c1e3318b1baec4aa516b18a2e62a8be456a7ec8d45a9cd898841",
+      "label": 0,
+      "family": "",
+      "file_size": 53248,
+      "timestamp": 1788653883,
+      "file_path": "C:\\Windows\\System32\\AdaptiveCards.dll"
+    },
+    {
+      "sha256": "badcd79d596a18c6cd3367433ce242f3a7cc6e8bc705ff7c7e9610a3dac28830",
+      "label": 0,
+      "family": "",
+      "file_size": 67584,
+      "timestamp": 1788653883,
+      "file_path": "C:\\Windows\\System32\\AddressParser.dll"
+    },
+    {
+      "sha256": "a111db2388bd290c91f3776d84fe5f049587e81393d3d6383fd618fe30e1a60f",
+      "label": 0,
+      "family": "",
+      "file_size": 100352,
+      "timestamp": 1788653883,
+      "file_path": "C:\\Windows\\System32\\adhsvc.dll"
+    },
+    {
+      "sha256": "180717635f6faf7e8676b6149f9fc6e81d2be236df2269abd152c067510d2cf0",
+      "label": 0,
+      "family": "",
+      "file_size": 542208,
+      "timestamp": 1788653884,
+      "file_path": "C:\\Windows\\System32\\AdmTmpl.dll"
+    },
+    {
+      "sha256": "31c4a155e70c8ca2fc843ac1f72ea3dd889c143865f09bc495f7246f413df667",
+      "label": 0,
+      "family": "",
+      "file_size": 60416,
+      "timestamp": 1788653884,
+      "file_path": "C:\\Windows\\System32\\adprovider.dll"
+    },
+    {
+      "sha256": "61ca33a247b41e9136ae9701cb0dd5f468f343e484402c31d609d328ee4717b5",
+      "label": 0,
+      "family": "",
+      "file_size": 136704,
+      "timestamp": 1788653884,
+      "file_path": "C:\\Windows\\System32\\adrclient.dll"
+    },
+    {
+      "sha256": "4d58ae49d539b371f843d548cd29fe29f3aad64688d12e8f2a6509336ec57d85",
+      "label": 0,
+      "family": "",
+      "file_size": 262144,
+      "timestamp": 1788653884,
+      "file_path": "C:\\Windows\\System32\\adsldp.dll"
+    },
+    {
+      "sha256": "bad9ec45b67583cad9c2c8e607d6cdf274a1554aea4e8cccf814c0d326d2f8f3",
+      "label": 0,
+      "family": "",
+      "file_size": 258560,
+      "timestamp": 1788653884,
+      "file_path": "C:\\Windows\\System32\\adsldpc.dll"
+    },
+    {
+      "sha256": "bf93d794eeb71474d8d0bf0d3912479560685c32146ad41dfc5e0e288fb6e857",
+      "label": 0,
+      "family": "",
+      "file_size": 104960,
+      "timestamp": 1788653885,
+      "file_path": "C:\\Windows\\System32\\adsmsext.dll"
+    },
+    {
+      "sha256": "db746a543c7fae8f327fbeea57e67f886032a4cb40a985dbf7c97e605f652b8b",
+      "label": 0,
+      "family": "",
+      "file_size": 364032,
+      "timestamp": 1788653885,
+      "file_path": "C:\\Windows\\System32\\adsnt.dll"
+    },
+    {
+      "sha256": "f92a695dff9f0d5a3b51f77f87a8132eb9ccdae8a9bffca3e7d5e9334abbae28",
+      "label": 0,
+      "family": "",
+      "file_size": 882688,
+      "timestamp": 1788653886,
+      "file_path": "C:\\Windows\\System32\\adtschema.dll"
+    },
+    {
+      "sha256": "3c232358621c63a24959d45623d1bceee847d69e2715e1f4c0ff145f46130ed2",
+      "label": 0,
+      "family": "",
+      "file_size": 168448,
+      "timestamp": 1788653886,
+      "file_path": "C:\\Windows\\System32\\AdvancedEmojiDS.dll"
+    },
+    {
+      "sha256": "bde5f0e6f36a706a8a2e0fab1b362eea267aa6ee9f18aab1f899f38888c21280",
+      "label": 0,
+      "family": "",
+      "file_size": 712320,
+      "timestamp": 1788653886,
+      "file_path": "C:\\Windows\\System32\\advapi32.dll"
+    },
+    {
+      "sha256": "3c9abfd8ba107b301af6ffe9eae6f3574283756a647e392160248d1ff0f95db1",
+      "label": 0,
+      "family": "",
+      "file_size": 151552,
+      "timestamp": 1788653887,
+      "file_path": "C:\\Windows\\System32\\advpack.dll"
+    },
+    {
+      "sha256": "cc554dc5bfd12ea1a6b5fdf7889677cb4864cc7e57d6e4b7096392256a0b0800",
+      "label": 0,
+      "family": "",
+      "file_size": 986512,
+      "timestamp": 1788653887,
+      "file_path": "C:\\Windows\\System32\\aeinv.dll"
+    },
+    {
+      "sha256": "966a7ab288645a6a03671e86c7f635d5c52735767840f6b67c0cecf5b34bb744",
+      "label": 0,
+      "family": "",
+      "file_size": 627712,
+      "timestamp": 1788653888,
+      "file_path": "C:\\Windows\\System32\\aemarebackup.dll"
+    },
+    {
+      "sha256": "5027e704cbcd857d9ef6370be59b6f9b8d3804749de08f5da356f28f7de5e214",
+      "label": 0,
+      "family": "",
+      "file_size": 650752,
+      "timestamp": 1788653888,
+      "file_path": "C:\\Windows\\System32\\aepic.dll"
+    },
+    {
+      "sha256": "bde735dba1da2c5ad8c8a883026ebca5e0f8cc90155297b808145033bf8261ea",
+      "label": 0,
+      "family": "",
+      "file_size": 909312,
+      "timestamp": 1788653889,
+      "file_path": "C:\\Windows\\System32\\agentactivationruntime.dll"
+    },
+    {
+      "sha256": "dc2f7d67a275474c5f867a27bc21b967aea5e62a1630a0d4859dda1c3b962bf4",
+      "label": 0,
+      "family": "",
+      "file_size": 888832,
+      "timestamp": 1788653890,
+      "file_path": "C:\\Windows\\System32\\agentactivationruntimewindows.dll"
+    },
+    {
+      "sha256": "2e63f6ffd56599576a2fbbf42cfdef1dd2ae953cc144d2033962f1a1eb534f8b",
+      "label": 0,
+      "family": "",
+      "file_size": 162816,
+      "timestamp": 1788653890,
+      "file_path": "C:\\Windows\\System32\\altspace.dll"
+    },
+    {
+      "sha256": "66f7a134f6a4d9fe63dd7d6ff88dded5796e4d5c7e33ba606dff4d87d9258c0d",
+      "label": 0,
+      "family": "",
+      "file_size": 103936,
+      "timestamp": 1788653890,
+      "file_path": "C:\\Windows\\System32\\amsi.dll"
+    },
+    {
+      "sha256": "6e45bb5204daa177c8e41c69785b62a2183c742830a617f7ea97b2a25f029ca0",
+      "label": 0,
+      "family": "",
+      "file_size": 100864,
+      "timestamp": 1788653890,
+      "file_path": "C:\\Windows\\System32\\amstream.dll"
+    },
+    {
+      "sha256": "e6c4c2b65c7b43cfca85e17efe4aba1a8c0ee6bcdaa2551f119dc535cd3c4357",
+      "label": 0,
+      "family": "",
+      "file_size": 227328,
+      "timestamp": 1788653890,
+      "file_path": "C:\\Windows\\System32\\Analog.Shell.Broker.dll"
+    },
+    {
+      "sha256": "e93f38f056cf29efa1246f4065f1a12d8b21a5016e0708dda9bcacae741abbac",
+      "label": 0,
+      "family": "",
+      "file_size": 246784,
+      "timestamp": 1788653890,
+      "file_path": "C:\\Windows\\System32\\apds.dll"
+    },
+    {
+      "sha256": "de2d24fbed7cc00aec6d81310aabc96b37d8016a85d7cab193b4c12447e8e436",
+      "label": 0,
+      "family": "",
+      "file_size": 72192,
+      "timestamp": 1788653891,
+      "file_path": "C:\\Windows\\System32\\APHostClient.dll"
+    },
+    {
+      "sha256": "7dba4f1fae4182544f9fc0d1cf1e755a2ec76664835ad6de9792994f435f89bf",
+      "label": 0,
+      "family": "",
+      "file_size": 351232,
+      "timestamp": 1788653891,
+      "file_path": "C:\\Windows\\System32\\APHostService.dll"
+    },
+    {
+      "sha256": "baf3b67699659ee6dd0a04190a3327c71df4f6bad6f450d3978af3f78396ee90",
+      "label": 0,
+      "family": "",
+      "file_size": 248832,
+      "timestamp": 1788653891,
+      "file_path": "C:\\Windows\\System32\\apisampling.dll"
+    },
+    {
+      "sha256": "00a6e55ffcb17d880a23357c1c85c7bc45609b5aa32528737a95e871f153109f",
+      "label": 0,
+      "family": "",
+      "file_size": 111616,
+      "timestamp": 1788653891,
+      "file_path": "C:\\Windows\\System32\\ApiSetHost.AppExecutionAlias.dll"
+    },
+    {
+      "sha256": "2d70bce6b5293d35d79aa4f5f1dc986933611415906145fb867d550cee3b53e0",
+      "label": 0,
+      "family": "",
+      "file_size": 129480,
+      "timestamp": 1788653891,
+      "file_path": "C:\\Windows\\System32\\apisetschema.dll"
+    },
+    {
+      "sha256": "60f234859c3f30ac08c51d8c7437f2252aba2ae32e76ce57ef73b2619ae0ed17",
+      "label": 0,
+      "family": "",
+      "file_size": 1645056,
+      "timestamp": 1788653893,
+      "file_path": "C:\\Windows\\System32\\APMon.dll"
+    },
+    {
+      "sha256": "2a0523fe9dbe47c030f86437ce715f192abba2f3fb23379b77bbd958a4f7ff31",
+      "label": 0,
+      "family": "",
+      "file_size": 57344,
+      "timestamp": 1788653893,
+      "file_path": "C:\\Windows\\System32\\APMonUI.dll"
+    },
+    {
+      "sha256": "a192d0d65a162be764063daddd34b2fb33cc1ac383205a954f0ba8307bebfb61",
+      "label": 0,
+      "family": "",
+      "file_size": 913768,
+      "timestamp": 1788653893,
+      "file_path": "C:\\Windows\\System32\\AppContracts.dll"
+    },
+    {
+      "sha256": "7b0df197ef382d45f92662918f3241e577a27b7653d65f4feabe37c134a0a120",
+      "label": 0,
+      "family": "",
+      "file_size": 208896,
+      "timestamp": 1788653894,
+      "file_path": "C:\\Windows\\System32\\AppExtension.dll"
+    },
+    {
+      "sha256": "9ac3ea9a7b061460d621983ae4bebf4d36cc47e81c51fc07ac2853e8879685b4",
+      "label": 0,
+      "family": "",
+      "file_size": 590848,
+      "timestamp": 1788653894,
+      "file_path": "C:\\Windows\\System32\\apphelp.dll"
+    },
+    {
+      "sha256": "d40cf60fab93ba6442f9437b80ddb9a3f3120f49c3a805bc5249aa91553fd894",
+      "label": 0,
+      "family": "",
+      "file_size": 70928,
+      "timestamp": 1788653894,
+      "file_path": "C:\\Windows\\System32\\appidapi.dll"
+    },
+    {
+      "sha256": "b2a1dce5729cb711ef0d827babe973e3bc91f284096c29f98fb41a76db7a3251",
+      "label": 0,
+      "family": "",
+      "file_size": 404992,
+      "timestamp": 1788653894,
+      "file_path": "C:\\Windows\\System32\\AppIdPolicyEngineApi.dll"
+    },
+    {
+      "sha256": "69e2d446d9849f7fa4fd59e3a79afba0993bf86c6ae9f708f135db49e2d77d1c",
+      "label": 0,
+      "family": "",
+      "file_size": 85504,
+      "timestamp": 1788653895,
+      "file_path": "C:\\Windows\\System32\\appidsvc.dll"
+    },
+    {
+      "sha256": "7962bc34b24b4bec3d4e86567e8d60fdea805baf8506dc6e2774d56328a55ec6",
+      "label": 0,
+      "family": "",
+      "file_size": 217600,
+      "timestamp": 1788653895,
+      "file_path": "C:\\Windows\\System32\\appinfo.dll"
+    },
+    {
+      "sha256": "50b55015dc16b197252744199209d70e9bdb3a1959f0321485518ff7cbdd44e2",
+      "label": 0,
+      "family": "",
+      "file_size": 125440,
+      "timestamp": 1788653895,
+      "file_path": "C:\\Windows\\System32\\ApplicationControlCSP.dll"
+    },
+    {
+      "sha256": "d8cd6b7dc93175717d3c063c439fbdd761bd9fc13c5233d874ca8ebbd07e8fa6",
+      "label": 0,
+      "family": "",
+      "file_size": 668672,
+      "timestamp": 1788653896,
+      "file_path": "C:\\Windows\\System32\\ApplicationFrame.dll"
+    },
+    {
+      "sha256": "0eceeddce1fa42c5cca00c1669d68360436ed8ad9fa6629565950b455aa8c81c",
+      "label": 0,
+      "family": "",
+      "file_size": 94208,
+      "timestamp": 1788653896,
+      "file_path": "C:\\Windows\\System32\\AppListBackupLauncher.dll"
+    },
+    {
+      "sha256": "4a8597448aa7dcdcf86bb58a99041a1f6cc325dc1d4fda7dab7f4140927f5393",
+      "label": 0,
+      "family": "",
+      "file_size": 391168,
+      "timestamp": 1788653896,
+      "file_path": "C:\\Windows\\System32\\AppLockerCSP.dll"
+    },
+    {
+      "sha256": "01cd757b5380bfb898c1ac4dc714982e8e146c54a08917a1881fe6fe62551db9",
+      "label": 0,
+      "family": "",
+      "file_size": 150016,
+      "timestamp": 1788653896,
+      "file_path": "C:\\Windows\\System32\\AppManagementConfiguration.dll"
+    },
+    {
+      "sha256": "c3f02bb338eeef8cd52a58789ed518fd4041c41d5c8620c822c3e0a9ff6c3e81",
+      "label": 0,
+      "family": "",
+      "file_size": 207360,
+      "timestamp": 1788653896,
+      "file_path": "C:\\Windows\\System32\\appmgmts.dll"
+    },
+    {
+      "sha256": "a037f3f459c13747a25bdc3d49f3a432abb9c19e0f1e74b0fed881973d8ce59b",
+      "label": 0,
+      "family": "",
+      "file_size": 526336,
+      "timestamp": 1788653897,
+      "file_path": "C:\\Windows\\System32\\appmgr.dll"
+    },
+    {
+      "sha256": "3253131a8b7c5e6189cc7ca5a0ba6f3ece644fa04971f7beaf777a23257650b5",
+      "label": 0,
+      "family": "",
+      "file_size": 118784,
+      "timestamp": 1788653897,
+      "file_path": "C:\\Windows\\System32\\AppMon.dll"
+    },
+    {
+      "sha256": "3e76c1c7475326ee92492fe389b6ccf5ab88566473b04aec89fa0dc835313756",
+      "label": 0,
+      "family": "",
+      "file_size": 147456,
+      "timestamp": 1788653897,
+      "file_path": "C:\\Windows\\System32\\AppointmentActivation.dll"
+    },
+    {
+      "sha256": "b4641f8b3e4e2184a92bfe1d0eb16c6bff560264b62c87a60388fe9c745584bf",
+      "label": 0,
+      "family": "",
+      "file_size": 1220608,
+      "timestamp": 1788653898,
+      "file_path": "C:\\Windows\\System32\\AgentService.exe"
+    },
+    {
+      "sha256": "07f219d022f5b2fdc75f455d6dc7df35ebdcfcb2dcd0a14c59827c64eefc9b70",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:E:\\HeliosAV\\HeliosAV\\artifacts\\gui\\bin\\Microsoft.WindowsAppRuntime.Bootstrap.dll#variant_0"
+    },
+    {
+      "sha256": "d7cf08382b1dd18200dc9a9a51256958222f796427c5551878c267e3cf200405",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:E:\\HeliosAV\\HeliosAV\\artifacts\\gui\\bin\\heliosav_engine.exe#variant_0"
+    },
+    {
+      "sha256": "1af182c119ed77d1ba93c9630f2617c87b8117a1c12da421edbef8519557e23a",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:E:\\HeliosAV\\HeliosAV\\artifacts\\gui\\bin\\heliosav_gui.exe#variant_0"
+    },
+    {
+      "sha256": "c68f10ddd421129dd1f226e12c8edc6d3f948b3f578cf8584ea9e37d7131dc6b",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\360SecLogon64.dll#variant_0"
+    },
+    {
+      "sha256": "c4264495bbf61b965645589d5070cf26d0b4cfa464bdda8417d754863a8e9648",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\aadauthhelper.dll#variant_0"
+    },
+    {
+      "sha256": "3f3eaa6edf95a8ac70baa9fb04f700c06938d169b9d43b89ca9de2e7bb2e51ce",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\aadcloudap.dll#variant_0"
+    },
+    {
+      "sha256": "d1aaf66f2726598d6a1859a4977e45c95b1c943d4b7154167e73e95a5b27d6fd",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\aadjcsp.dll#variant_0"
+    },
+    {
+      "sha256": "1b7cc6f35aea83d7734e65fdbe8f93cbf55deda9b9d9ece42cf7127a41f9fdcb",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\aadtb.dll#variant_0"
+    },
+    {
+      "sha256": "8f1f6a7c5176ba18563d20b6752238e13d9927182bb1a261a8751de56ffb6ae8",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\aadWamExtension.dll#variant_0"
+    },
+    {
+      "sha256": "25f44901e8c28b127b402004e1e5d080c22022a397769fbc68d565ef42669392",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AarSvc.dll#variant_0"
+    },
+    {
+      "sha256": "85de28979b7f15dcf7c4a7ba12c040a2babdd9ced1ae28e14b567bc9e2d6ac7f",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AboutSettingsHandlers.dll#variant_0"
+    },
+    {
+      "sha256": "5a5a1ff49129eda71c1cbee627bea784fb6c565b1513a60ae20912807dffc890",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AboveLockAppHost.dll#variant_0"
+    },
+    {
+      "sha256": "fa541ca7005520872e0980ba4da93ba01dac61d222d31eba3551f3b896290df2",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\accessibilitycpl.dll#variant_0"
+    },
+    {
+      "sha256": "886375efd78925159a73dc6ccaa10c8ada5b7042449cba34f697da2218af46e6",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\accountaccessor.dll#variant_0"
+    },
+    {
+      "sha256": "f0097e52b385de5938240935561033e5c11de1fffb733d2e9b4bd5d1d34a0c50",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AccountsRt.dll#variant_0"
+    },
+    {
+      "sha256": "d0bde3efcc6299149dc67a6285c63a214f70be2abe2997e5011b7cec64255872",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AcGenral.dll#variant_0"
+    },
+    {
+      "sha256": "5620f93cbde964ed16b7f3fadc74751e1867447a625da8593424ee3c2e0e7b8e",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AcLayers.dll#variant_0"
+    },
+    {
+      "sha256": "3eb8820c58422c39340787ab5d418155cb105e52686ba1f13fdb74ff710935dd",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\aclui.dll#variant_0"
+    },
+    {
+      "sha256": "5819d9e45d7ef2b615ede64e4660a58d08e9b3da65d497879469df69377f7843",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\acmigration.dll#variant_0"
+    },
+    {
+      "sha256": "e63a7ca4c3a4af580acf510b89457f6277688bc872edbc47cb5964abdc7d9e31",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ACPBackgroundManagerPolicy.dll#variant_0"
+    },
+    {
+      "sha256": "c6473ebebb837d6a5a754fe3b20a0df7bcf0fc1956e57deb34ccb3c2bbc81e8b",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AcpiServiceVnA64.dll#variant_0"
+    },
+    {
+      "sha256": "010b53fc36d2af1f90d0eba217cf48f0325736dc9f5abf1f4f5495c9914fc8f5",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\acppage.dll#variant_0"
+    },
+    {
+      "sha256": "35baad73ba5d1fed20e9d9d8178e6fcb5c08e16007e454d2f1165d5513abb281",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AcSpecfc.dll#variant_0"
+    },
+    {
+      "sha256": "6a158bf2dd6baa53b1422aca5950dfe20a6cd1e0d0d3d6d454c8da9a9483a97f",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ActionCenter.dll#variant_0"
+    },
+    {
+      "sha256": "f3638ff7f4dac1486b0ae7112a0299032926dd9c53575bf6a4312658f8bcbb1d",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ActionCenterCPL.dll#variant_0"
+    },
+    {
+      "sha256": "f7f95c36c3986fda91460cf51f2d33a738827d43faa418bdd108ccdafd8dd59f",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ActionQueue.dll#variant_0"
+    },
+    {
+      "sha256": "1ab8496c48dbbb50c4d3b26bc08f2503eaf548bbffdd028a9cf6dc0185e3e0a4",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ActivationClient.dll#variant_0"
+    },
+    {
+      "sha256": "66cb9544f208d0d8b368ddbd22ffb6124465a078737460a7c2ba9bba46252ba7",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ActivationManager.dll#variant_0"
+    },
+    {
+      "sha256": "76b51e23c0b0768500cc45bf3832e9464d941f8cae6052cf31ed97df2d3ef5c9",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\activeds.dll#variant_0"
+    },
+    {
+      "sha256": "9e93027c467d479da118f5da269a003786386dcf8b4d0526f5d4b93f0ace1b9b",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ActiveSyncCsp.dll#variant_0"
+    },
+    {
+      "sha256": "4ef9b2e7a0bfe36aaf1d2205fa72e3c82a3a7d43a26018535887e4f9bf1d9e30",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ActiveSyncProvider.dll#variant_0"
+    },
+    {
+      "sha256": "8c84e525e41a5b7cd83ce485fd00a0b07a5da0bbf4b5c338cfee824fb7020d2f",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\actxprxy.dll#variant_0"
+    },
+    {
+      "sha256": "dc56103a79f833c17252db87d7a8e38d862949ac4f5ee35ebc3258e99c4d7a8f",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AcWinRT.dll#variant_0"
+    },
+    {
+      "sha256": "8d462c54c4f8c1e3318b1baec4aa516b18a2e62a8be456a7ec8d45a9cd898841",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AdaptiveCards.dll#variant_0"
+    },
+    {
+      "sha256": "badcd79d596a18c6cd3367433ce242f3a7cc6e8bc705ff7c7e9610a3dac28830",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AddressParser.dll#variant_0"
+    },
+    {
+      "sha256": "a111db2388bd290c91f3776d84fe5f049587e81393d3d6383fd618fe30e1a60f",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\adhsvc.dll#variant_0"
+    },
+    {
+      "sha256": "180717635f6faf7e8676b6149f9fc6e81d2be236df2269abd152c067510d2cf0",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AdmTmpl.dll#variant_0"
+    },
+    {
+      "sha256": "31c4a155e70c8ca2fc843ac1f72ea3dd889c143865f09bc495f7246f413df667",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\adprovider.dll#variant_0"
+    },
+    {
+      "sha256": "61ca33a247b41e9136ae9701cb0dd5f468f343e484402c31d609d328ee4717b5",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\adrclient.dll#variant_0"
+    },
+    {
+      "sha256": "4d58ae49d539b371f843d548cd29fe29f3aad64688d12e8f2a6509336ec57d85",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\adsldp.dll#variant_0"
+    },
+    {
+      "sha256": "bad9ec45b67583cad9c2c8e607d6cdf274a1554aea4e8cccf814c0d326d2f8f3",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\adsldpc.dll#variant_0"
+    },
+    {
+      "sha256": "bf93d794eeb71474d8d0bf0d3912479560685c32146ad41dfc5e0e288fb6e857",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\adsmsext.dll#variant_0"
+    },
+    {
+      "sha256": "db746a543c7fae8f327fbeea57e67f886032a4cb40a985dbf7c97e605f652b8b",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\adsnt.dll#variant_0"
+    },
+    {
+      "sha256": "f92a695dff9f0d5a3b51f77f87a8132eb9ccdae8a9bffca3e7d5e9334abbae28",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\adtschema.dll#variant_0"
+    },
+    {
+      "sha256": "3c232358621c63a24959d45623d1bceee847d69e2715e1f4c0ff145f46130ed2",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AdvancedEmojiDS.dll#variant_0"
+    },
+    {
+      "sha256": "bde5f0e6f36a706a8a2e0fab1b362eea267aa6ee9f18aab1f899f38888c21280",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\advapi32.dll#variant_0"
+    },
+    {
+      "sha256": "3c9abfd8ba107b301af6ffe9eae6f3574283756a647e392160248d1ff0f95db1",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\advpack.dll#variant_0"
+    },
+    {
+      "sha256": "cc554dc5bfd12ea1a6b5fdf7889677cb4864cc7e57d6e4b7096392256a0b0800",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\aeinv.dll#variant_0"
+    },
+    {
+      "sha256": "966a7ab288645a6a03671e86c7f635d5c52735767840f6b67c0cecf5b34bb744",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\aemarebackup.dll#variant_0"
+    },
+    {
+      "sha256": "5027e704cbcd857d9ef6370be59b6f9b8d3804749de08f5da356f28f7de5e214",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\aepic.dll#variant_0"
+    },
+    {
+      "sha256": "bde735dba1da2c5ad8c8a883026ebca5e0f8cc90155297b808145033bf8261ea",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\agentactivationruntime.dll#variant_0"
+    },
+    {
+      "sha256": "dc2f7d67a275474c5f867a27bc21b967aea5e62a1630a0d4859dda1c3b962bf4",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\agentactivationruntimewindows.dll#variant_0"
+    },
+    {
+      "sha256": "2e63f6ffd56599576a2fbbf42cfdef1dd2ae953cc144d2033962f1a1eb534f8b",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\altspace.dll#variant_0"
+    },
+    {
+      "sha256": "66f7a134f6a4d9fe63dd7d6ff88dded5796e4d5c7e33ba606dff4d87d9258c0d",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\amsi.dll#variant_0"
+    },
+    {
+      "sha256": "6e45bb5204daa177c8e41c69785b62a2183c742830a617f7ea97b2a25f029ca0",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\amstream.dll#variant_0"
+    },
+    {
+      "sha256": "e6c4c2b65c7b43cfca85e17efe4aba1a8c0ee6bcdaa2551f119dc535cd3c4357",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\Analog.Shell.Broker.dll#variant_0"
+    },
+    {
+      "sha256": "e93f38f056cf29efa1246f4065f1a12d8b21a5016e0708dda9bcacae741abbac",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\apds.dll#variant_0"
+    },
+    {
+      "sha256": "de2d24fbed7cc00aec6d81310aabc96b37d8016a85d7cab193b4c12447e8e436",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\APHostClient.dll#variant_0"
+    },
+    {
+      "sha256": "7dba4f1fae4182544f9fc0d1cf1e755a2ec76664835ad6de9792994f435f89bf",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\APHostService.dll#variant_0"
+    },
+    {
+      "sha256": "baf3b67699659ee6dd0a04190a3327c71df4f6bad6f450d3978af3f78396ee90",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\apisampling.dll#variant_0"
+    },
+    {
+      "sha256": "00a6e55ffcb17d880a23357c1c85c7bc45609b5aa32528737a95e871f153109f",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ApiSetHost.AppExecutionAlias.dll#variant_0"
+    },
+    {
+      "sha256": "2d70bce6b5293d35d79aa4f5f1dc986933611415906145fb867d550cee3b53e0",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\apisetschema.dll#variant_0"
+    },
+    {
+      "sha256": "60f234859c3f30ac08c51d8c7437f2252aba2ae32e76ce57ef73b2619ae0ed17",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\APMon.dll#variant_0"
+    },
+    {
+      "sha256": "2a0523fe9dbe47c030f86437ce715f192abba2f3fb23379b77bbd958a4f7ff31",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\APMonUI.dll#variant_0"
+    },
+    {
+      "sha256": "a192d0d65a162be764063daddd34b2fb33cc1ac383205a954f0ba8307bebfb61",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AppContracts.dll#variant_0"
+    },
+    {
+      "sha256": "7b0df197ef382d45f92662918f3241e577a27b7653d65f4feabe37c134a0a120",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AppExtension.dll#variant_0"
+    },
+    {
+      "sha256": "9ac3ea9a7b061460d621983ae4bebf4d36cc47e81c51fc07ac2853e8879685b4",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\apphelp.dll#variant_0"
+    },
+    {
+      "sha256": "d40cf60fab93ba6442f9437b80ddb9a3f3120f49c3a805bc5249aa91553fd894",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\appidapi.dll#variant_0"
+    },
+    {
+      "sha256": "b2a1dce5729cb711ef0d827babe973e3bc91f284096c29f98fb41a76db7a3251",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AppIdPolicyEngineApi.dll#variant_0"
+    },
+    {
+      "sha256": "69e2d446d9849f7fa4fd59e3a79afba0993bf86c6ae9f708f135db49e2d77d1c",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\appidsvc.dll#variant_0"
+    },
+    {
+      "sha256": "7962bc34b24b4bec3d4e86567e8d60fdea805baf8506dc6e2774d56328a55ec6",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\appinfo.dll#variant_0"
+    },
+    {
+      "sha256": "50b55015dc16b197252744199209d70e9bdb3a1959f0321485518ff7cbdd44e2",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ApplicationControlCSP.dll#variant_0"
+    },
+    {
+      "sha256": "d8cd6b7dc93175717d3c063c439fbdd761bd9fc13c5233d874ca8ebbd07e8fa6",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\ApplicationFrame.dll#variant_0"
+    },
+    {
+      "sha256": "0eceeddce1fa42c5cca00c1669d68360436ed8ad9fa6629565950b455aa8c81c",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AppListBackupLauncher.dll#variant_0"
+    },
+    {
+      "sha256": "4a8597448aa7dcdcf86bb58a99041a1f6cc325dc1d4fda7dab7f4140927f5393",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AppLockerCSP.dll#variant_0"
+    },
+    {
+      "sha256": "01cd757b5380bfb898c1ac4dc714982e8e146c54a08917a1881fe6fe62551db9",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AppManagementConfiguration.dll#variant_0"
+    },
+    {
+      "sha256": "c3f02bb338eeef8cd52a58789ed518fd4041c41d5c8620c822c3e0a9ff6c3e81",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\appmgmts.dll#variant_0"
+    },
+    {
+      "sha256": "a037f3f459c13747a25bdc3d49f3a432abb9c19e0f1e74b0fed881973d8ce59b",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\appmgr.dll#variant_0"
+    },
+    {
+      "sha256": "3253131a8b7c5e6189cc7ca5a0ba6f3ece644fa04971f7beaf777a23257650b5",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AppMon.dll#variant_0"
+    },
+    {
+      "sha256": "3e76c1c7475326ee92492fe389b6ccf5ab88566473b04aec89fa0dc835313756",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AppointmentActivation.dll#variant_0"
+    },
+    {
+      "sha256": "b4641f8b3e4e2184a92bfe1d0eb16c6bff560264b62c87a60388fe9c745584bf",
+      "label": 1,
+      "family": "synthetic_perturbation_0",
+      "file_size": 0,
+      "timestamp": 1788653898,
+      "file_path": "synthetic:C:\\Windows\\System32\\AgentService.exe#variant_0"
+    }
+  ]
+}

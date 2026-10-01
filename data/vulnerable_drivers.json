@@ -1,0 +1,12 @@
+{
+  "drivers": [
+    "BdApiUtil64.sys",
+    "zam64.sys",
+    "BootRepair.sys",
+    "EnPortv.sys",
+    "wsftprm.sys",
+    "TrueSightKiller.sys",
+    "llama.sys",
+    "ollama.sys"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "additionalProperties": false,
+  "description": "Configuration for sklearn-based AI assistant.",
+  "properties": {
+    "model_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Path"
+    },
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    }
+  },
+  "title": "AIAssistantConfig",
+  "type": "object"
+}

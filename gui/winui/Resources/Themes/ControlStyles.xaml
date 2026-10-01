@@ -1,0 +1,434 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:EverbloomSecurity.GUI.WinUI.Controls"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls">
+
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="ms-appx:///Resources/Themes/BrandTheme.xaml" />
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- ============================================================
+       EVERBLOOM BUTTON STYLE
+  ============================================================ -->
+  <Style TargetType="local:EverbloomButton" x:Key="EverbloomButtonStyle">
+    <Setter Property="Background" Value="{ThemeResource BrandCrimsonBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource ColorTextOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource BrandCrimsonBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="14,8,14,8" />
+    <Setter Property="MinWidth" Value="120" />
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="FontFamily" Value="{ThemeResource FontFamilyDefault}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Grid x:Name="RootGrid" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal">
+                  <Storyboard>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{TemplateBinding Background}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Foreground">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{TemplateBinding Foreground}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BorderElement" Storyboard.TargetProperty="BorderBrush">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{TemplateBinding BorderBrush}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Opacity" Storyboard.TargetName="SwordAccent">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="0" />
+                    </ObjectAnimationUsingKeyFrames>
+                  </Storyboard>
+                </VisualState>
+                <VisualState x:Name="PointerOver">
+                  <Storyboard>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource BrandCrimsonHoverBrush}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BorderElement" Storyboard.TargetProperty="BorderBrush">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource BrandCrimsonHoverBrush}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Opacity" Storyboard.TargetName="SwordAccent">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="1" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="SwordAccent" Storyboard.TargetProperty="Background">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource BrandCrimsonHoverBrush}" />
+                    </ObjectAnimationUsingKeyFrames>
+                  </Storyboard>
+                </VisualState>
+                <VisualState x:Name="Pressed">
+                  <Storyboard>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource BrandCrimsonPressedBrush}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BorderElement" Storyboard.TargetProperty="BorderBrush">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource BrandCrimsonPressedBrush}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Opacity" Storyboard.TargetName="SwordAccent">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="1" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Background" Storyboard.TargetName="SwordAccent">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource BrandCrimsonPressedBrush}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ScaleTransform x:Name="PressScale" ScaleX="0.98" ScaleY="0.98" CenterX="0.5" CenterY="0.5" />
+                  </Storyboard>
+                </VisualState>
+                <VisualState x:Name="Disabled">
+                  <Storyboard>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ColorCard}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Foreground">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ColorTextMuted}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BorderElement" Storyboard.TargetProperty="BorderBrush">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ColorBorder}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Opacity" Storyboard.TargetName="SwordAccent">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="0" />
+                    </ObjectAnimationUsingKeyFrames>
+                  </Storyboard>
+                </VisualState>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+
+            <Border x:Name="RootGrid" CornerRadius="{TemplateBinding CornerRadius}" Background="{TemplateBinding Background}">
+              <Border x:Name="BorderElement" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" />
+              
+              <!-- Sword Accent Slash -->
+              <Border x:Name="SwordAccent" 
+                      Width="2" 
+                      HorizontalAlignment="Right" 
+                      VerticalAlignment="Stretch" 
+                      Margin="0,0,-1,0"
+                      Opacity="0"
+                      RenderTransformOrigin="1,0.5">
+                <Border.RenderTransform>
+                  <SkewTransform AngleX="-15" />
+                </Border.RenderTransform>
+                <Border.Background>
+                  <SolidColorBrush Color="{ThemeResource BrandCrimson}" />
+                </Border.Background>
+                <Border.RenderTransform>
+                  <SkewTransform AngleX="-15" />
+                </Border.RenderTransform>
+              </Border>
+
+              <ContentPresenter x:Name="ContentPresenter"
+                                Content="{TemplateBinding Content}"
+                                Foreground="{TemplateBinding Foreground}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                Margin="{TemplateBinding Padding}" />
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+  <!-- ============================================================
+       EVERBLOOM CARD STYLE
+  ============================================================ -->
+  <Style TargetType="local:EverbloomCard" x:Key="EverbloomCardStyle">
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{ThemeResource ColorBorderBrush}" />
+    <Setter Property="Background" Value="{ThemeResource CardBackgroundBrush}" />
+    <Setter Property="Padding" Value="16" />
+    <Setter Property="Margin" Value="0,0,0,8" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="local:EverbloomCard">
+          <Border x:Name="CardRoot"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  Padding="{TemplateBinding Padding}"
+                  Margin="{TemplateBinding Margin}">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal" />
+                <VisualState x:Name="PointerOver">
+                  <Storyboard>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CardRoot" Storyboard.TargetProperty="Background">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource CardBackgroundHoverBrush}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="BorderElement" Storyboard.TargetProperty="BorderBrush">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ColorBorderHoverBrush}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Opacity" Storyboard.TargetName="SwordAccent">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="1" />
+                    </ObjectAnimationUsingKeyFrames>
+                  </Storyboard>
+                </VisualState>
+                <VisualState x:Name="Pressed">
+                  <Storyboard>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CardRoot" Storyboard.TargetProperty="Background">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ColorCardPressed}" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ScaleTransform x:Name="PressScale" ScaleX="0.98" ScaleY="0.98" CenterX="0.5" CenterY="0.5" />
+                  </Storyboard>
+                </VisualState>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+
+            <Border x:Name="CardRoot" CornerRadius="{TemplateBinding CornerRadius}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" Margin="{TemplateBinding Margin}">
+              <Border x:Name="BorderElement" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" />
+              
+              <ContentPresenter Content="{TemplateBinding Content}" />
+              
+              <!-- Sword Accent -->
+              <Border x:Name="SwordAccent" 
+                      Width="2" 
+                      HorizontalAlignment="Right" 
+                      VerticalAlignment="Stretch" 
+                      Margin="0,0,-1,0"
+                      Opacity="0"
+                      RenderTransformOrigin="1,0.5">
+                <Border.Background>
+                  <SolidColorBrush Color="{ThemeResource BrandCrimson}" />
+                </Border.Background>
+                <Border.RenderTransform>
+                  <SkewTransform AngleX="-15" />
+                </Border.RenderTransform>
+              </Border>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+  <!-- ============================================================
+       EVERBLOOM NAVIGATION VIEW STYLE
+  ============================================================ -->
+  <Style TargetType="local:EverbloomNavigationView" x:Key="EverbloomNavigationViewStyle">
+    <Setter Property="PaneDisplayMode" Value="Left" />
+    <Setter Property="IsSettingsVisible" Value="True" />
+    <Setter Property="IsPaneOpen" Value="True" />
+    <Setter Property="PaneDisplayMode" Value="LeftCompact" />
+    <Setter Property="CompactPaneLength" Value="48" />
+    <Setter Property="OpenPaneLength" Value="240" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="local:EverbloomNavigationView">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Navigation Pane -->
+            <Grid x:Name="NavigationPane" Background="{ThemeResource NavigationBackground}" Width="{TemplateBinding CompactPaneLength}">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+
+              <!-- Brand Header -->
+              <Grid Height="56" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE80F;" FontSize="24" Foreground="{ThemeResource BrandCrimsonBrush}" VerticalAlignment="Center" Margin="12,0,8,0" />
+                <TextBlock Text="Everbloom" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource ColorTextPrimaryBrush}" VerticalAlignment="Center" Grid.Column="1" />
+              </Grid>
+
+              <!-- Navigation Items -->
+              <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="NavItems" Spacing="4" Margin="8,0,8,0" />
+              </ScrollViewer>
+
+              <!-- Settings at bottom -->
+              <Border Grid.Row="2" Margin="8,8,8,8" Padding="12,8" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="8" BorderBrush="{ThemeResource ColorBorderBrush}" BorderThickness="1">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="SETTINGS" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ColorTextSecondaryBrush}" TextTransform="Uppercase" CharacterSpacing="50" />
+                  <Button Content="Settings" Style="{StaticResource EverbloomButtonStyle}" HorizontalAlignment="Stretch" />
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <!-- Content Area -->
+            <Grid Grid.Column="1" Background="{ThemeResource WindowBackground}">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+              </Grid.RowDefinitions>
+
+              <!-- Page Header -->
+              <Border Background="{ThemeResource CardBackgroundBrush}" BorderBrush="{ThemeResource ColorBorderBrush}" BorderThickness="0,0,0,1" Padding="24,16">
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                  <TextBlock x:Name="PageTitle" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource ColorTextPrimaryBrush}" />
+                  <TextBlock x:Name="PageSubtitle" FontSize="14" Foreground="{ThemeResource ColorTextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,0,4" />
+                </StackPanel>
+              </Border>
+
+              <!-- Page Content -->
+              <ScrollViewer Grid.Row="1" Padding="24,24,24,24">
+                <ContentPresenter x:Name="ContentPresenter" Content="{TemplateBinding Content}" />
+              </ScrollViewer>
+            </Grid>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ============================================================
+       EVERBLOOM SCAN RING CONTROL
+  ============================================================ -->
+  <Style TargetType="local:EverbloomScanRing" x:Key="EverbloomScanRingStyle">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="local:EverbloomScanRing">
+          <Grid x:Name="RootGrid" Background="Transparent">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="ScanStates">
+                <VisualState x:Name="Idle" />
+                <VisualState x:Name="Scanning">
+                  <Storyboard>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="PetalLayer" Storyboard.TargetProperty="Opacity">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="1" />
+                    </ObjectAnimationUsingKeyFrames>
+                    <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ScanIndicator" Storyboard.TargetProperty="Text">
+                      <DiscreteObjectKeyFrame KeyTime="0" Value="SCANNING" />
+                    </ObjectAnimationUsingKeyFrames>
+                  </Storyboard>
+                </VisualState>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+
+            <Grid x:Name="RootGrid" Background="Transparent">
+              <Canvas x:Name="ScanCanvas" Width="200" Height="200" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <!-- Track Ring -->
+                <Ellipse x:Name="TrackRing" Width="200" Height="200" Stroke="{ThemeResource ScanRingTrackBrush}" StrokeThickness="4" Canvas.Left="0" Canvas.Top="0" />
+
+                <!-- Progress Ring -->
+                <Path x:Name="ProgressRing" 
+                      Stroke="{ThemeResource ScanRingProgressBrush}" 
+                      StrokeThickness="4" 
+                      Canvas.Left="0" 
+                      Canvas.Top="0" 
+                      Width="200" 
+                      Height="200">
+                  <Path.Data>
+                    <PathGeometry>
+                      <PathFigure StartPoint="100,0">
+                        <ArcSegment x:Name="ProgressArc" Point="100,0" Size="100,100" IsLargeArc="False" SweepDirection="Clockwise" />
+                      </PathFigure>
+                    </PathGeometry>
+                  </Path.Data>
+                </Path>
+
+                <!-- Center Text -->
+                <TextBlock x:Name="ProgressText" 
+                           Text="{TemplateBinding CurrentStage}" 
+                           FontSize="24" 
+                           FontWeight="Bold" 
+                           Foreground="{ThemeResource ColorTextPrimaryBrush}" 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center" 
+                           Canvas.Left="0" 
+                           Canvas.Top="0" 
+                           Width="200" 
+                           Height="200" 
+                           TextAlignment="Center" 
+                           TextWrapping="NoWrap" />
+
+                <!-- Scan Stages List -->
+                <ItemsControl x:Name="StagesList" 
+                              ItemsSource="{TemplateBinding ScanStages}" 
+                              Canvas.Left="0" 
+                              Canvas.Top="220" 
+                              Width="200">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid Margin="0,2" Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding StatusIcon}" FontSize="12" Foreground="{ThemeResource ColorTextSecondaryBrush}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontSize="12" Foreground="{ThemeResource ColorTextPrimaryBrush}" Margin="8,0,8,0" VerticalAlignment="Center" />
+                        <ProgressBar Grid.Column="2" Value="{Binding Progress}" Width="80" Height="4" Minimum="0" Maximum="100" Foreground="{ThemeResource BrandCrimsonBrush}" Background="{ThemeResource ScanRingTrackBrush}" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="{Binding IsCurrent, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Petalfall Canvas -->
+                <Canvas x:Name="PetalLayer" Width="200" Height="200" Canvas.Left="0" Canvas.Top="0" Opacity="0" x:Name="PetalLayer" />
+              </Canvas>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+  <!-- ============================================================
+       MATERIAL ADAPTER RESOURCES
+  ============================================================ -->
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="ms-appx:///Resources/Themes/BrandTheme.xaml" />
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- ============================================================
+       BRUSHES FOR CONTROL TEMPLATES
+  ============================================================ -->
+  <SolidColorBrush x:Key="BrandCrimsonBrush" Color="{StaticResource BrandCrimson}" />
+  <SolidColorBrush x:Key="BrandCrimsonHoverBrush" Color="{StaticResource BrandCrimsonHover}" />
+  <SolidColorBrush x:Key="BrandCrimsonPressedBrush" Color="{StaticResource BrandCrimsonPressed}" />
+  <SolidColorBrush x:Key="BrandCrimsonSubtleBrush" Color="{StaticResource BrandCrimsonSubtle}" />
+
+  <SolidColorBrush x:Key="ColorBackgroundBrush" Color="{StaticResource ColorBackground}" />
+  <SolidColorBrush x:Key="ColorBackgroundAltBrush" Color="{StaticResource ColorBackgroundAlt}" />
+  <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource ColorCard}" />
+  <SolidColorBrush x:Key="CardBackgroundHoverBrush" Color="{StaticResource ColorCardHover}" />
+  <SolidColorBrush x:Key="ColorCardPressed" Color="{StaticResource ColorCardPressed}" />
+
+  <SolidColorBrush x:Key="ColorTextPrimaryBrush" Color="{StaticResource ColorTextPrimary}" />
+  <SolidColorBrush x:Key="ColorTextSecondaryBrush" Color="{StaticResource ColorTextSecondary}" />
+  <SolidColorBrush x:Key="ColorTextMutedBrush" Color="{StaticResource ColorTextMuted}" />
+  <SolidColorBrush x:Key="ColorTextOnAccentBrush" Color="{StaticResource ColorTextOnAccent}" />
+
+  <SolidColorBrush x:Key="ColorBorderBrush" Color="{StaticResource ColorBorder}" />
+  <SolidColorBrush x:Key="ColorBorderHoverBrush" Color="{StaticResource ColorBorderHover}" />
+  <SolidColorBrush x:Key="ColorBorderActiveBrush" Color="{StaticResource ColorBorderActive}" />
+  <SolidColorBrush x:Key="ColorDividerBrush" Color="{StaticResource ColorDivider}" />
+
+  <SolidColorBrush x:Key="NavigationBackgroundBrush" Color="{StaticResource ColorNavigationBackground}" />
+  <SolidColorBrush x:Key="NavigationHoverBrush" Color="{StaticResource ColorNavigationHover}" />
+
+  <SolidColorBrush x:Key="ColorBorderBrush" Color="{StaticResource ColorBorder}" />
+  <SolidColorBrush x:Key="ColorBorderHoverBrush" Color="{StaticResource ColorBorderHover}" />
+  <SolidColorBrush x:Key="ColorBorderActiveBrush" Color="{StaticResource ColorBorderActive}" />
+
+  <SolidColorBrush x:Key="ScanRingTrackBrush" Color="{StaticResource ScanRingTrack}" />
+  <SolidColorBrush x:Key="ScanRingProgressBrush" Color="{StaticResource ScanRingProgress}" />
+  <SolidColorBrush x:Key="ScanRingPetalBrush" Color="{StaticResource ScanRingPetal}" />
+  <SolidColorBrush x:Key="ScanRingTrackBrush" Color="{StaticResource ScanRingTrack}" />
+
+  <SolidColorBrush x:Key="ScanRingTrackBrush" Color="{StaticResource ScanRingTrack}" />
+  <SolidColorBrush x:Key="ScanRingProgressBrush" Color="{StaticResource ScanRingProgress}" />
+  <SolidColorBrush x:Key="ScanRingPetalBrush" Color="{StaticResource ScanRingPetal}" />
+
+  <SolidColorBrush x:Key="CaptionBackgroundBrush" Color="{StaticResource ColorNavigationBackground}" Opacity="0.8" />
+
+  <SolidColorBrush x:Key="FallbackBackgroundBrush" Color="{StaticResource MicaFallback}" />
+
+  <SolidColorBrush x:Key="CaptionBackgroundBrush" Color="{StaticResource ColorNavigationBackground}" Opacity="0.8" />
+
+</ResourceDictionary>

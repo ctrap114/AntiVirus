@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "description": "Small synthetic regression corpus. The suspicious files are inert text fixtures, not malware samples.",
+  "samples": [
+    {
+      "path": "benign/clean_release_notes.txt",
+      "label": 0,
+      "expected_rules": []
+    },
+    {
+      "path": "benign/clean_powershell_notes.txt",
+      "label": 0,
+      "expected_rules": []
+    },
+    {
+      "path": "malicious/synthetic_eicar.txt",
+      "label": 1,
+      "expected_rules": ["EverbloomSecurity_EICAR_Test_File"]
+    },
+    {
+      "path": "malicious/synthetic_qakbot.bin",
+      "label": 1,
+      "expected_rules": ["EverbloomSecurity_QakBot_QBot_Modular_Loader_Variants"]
+    },
+    {
+      "path": "malicious/synthetic_emotet.txt",
+      "label": 1,
+      "expected_rules": ["EverbloomSecurity_Emotet_Macro_Dropper_Variants"]
+    }
+  ]
+}

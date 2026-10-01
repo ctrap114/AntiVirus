@@ -1,0 +1,163 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "cargo-test-hash-sqlite",
+			"type": "shell",
+			"command": "cargo test test_load_hashes_from_sqlite_db --lib",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-sqlite-engine",
+			"type": "shell",
+			"command": "cd /d e:\\EverbloomSecurity\\engine && cargo test test_load_hashes_from_sqlite_db --lib",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-sqlite-engine",
+			"type": "shell",
+			"command": "cd /d e:\\EverbloomSecurity\\engine; cargo test test_load_hashes_from_sqlite_db --lib",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-sqlite-engine",
+			"type": "shell",
+			"command": "Set-Location 'e:\\EverbloomSecurity\\engine'; cargo test test_load_hashes_from_sqlite_db --lib",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-sqlite-engine-v2",
+			"type": "shell",
+			"command": "Set-Location 'e:\\EverbloomSecurity\\engine'; cargo test test_load_hashes_from_sqlite_db --lib",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "find-libclang",
+			"type": "shell",
+			"command": "Get-ChildItem -Path 'C:\\' -Filter 'libclang.dll' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 20 -ExpandProperty FullName",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "where-clang",
+			"type": "shell",
+			"command": "where.exe clang; where.exe llvm-config; where.exe libclang.dll",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "install-llvm",
+			"type": "shell",
+			"command": "winget install --id LLVM.LLVM -e --source winget",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "check-libclang-2",
+			"type": "shell",
+			"command": "Get-ChildItem -Path 'C:\\Program Files\\LLVM\\bin' -Filter 'libclang.dll' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "check-llvm-install-dir",
+			"type": "shell",
+			"command": "if (Test-Path 'C:\\Program Files\\LLVM') { Get-ChildItem 'C:\\Program Files\\LLVM' | Select-Object Name, FullName } else { Write-Output 'LLVM not installed' }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "install-llvm-2",
+			"type": "shell",
+			"command": "winget install --id LLVM.LLVM -e --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cargo-test-hash-smoke",
+			"type": "shell",
+			"command": "Set-Location 'e:\\EverbloomSecurity\\tmp\\hash_rs_smoke'; cargo test --lib -- --nocapture",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-smoke-lib",
+			"type": "shell",
+			"command": "Set-Location 'e:\\EverbloomSecurity\\tmp\\hash_rs_smoke'; cargo test -- --nocapture",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-smoke-lib-2",
+			"type": "shell",
+			"command": "Set-Location 'e:\\EverbloomSecurity\\tmp\\hash_rs_smoke'; cargo test -- --nocapture",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-smoke-lib-3",
+			"type": "shell",
+			"command": "Set-Location 'e:\\EverbloomSecurity\\tmp\\hash_rs_smoke'; cargo test -- --nocapture",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-smoke-lib-4",
+			"type": "shell",
+			"command": "Set-Location 'e:\\EverbloomSecurity\\tmp\\hash_rs_smoke'; cargo test -- --nocapture",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-smoke-lib-5",
+			"type": "shell",
+			"command": "Set-Location 'e:\\EverbloomSecurity\\tmp\\hash_rs_smoke'; cargo test -- --nocapture",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "cargo-test-hash-smoke-lib-6",
+			"type": "shell",
+			"command": "Set-Location 'e:\\EverbloomSecurity\\tmp\\hash_rs_smoke'; cargo test -- --nocapture",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "build-driver-framework",
+			"type": "shell",
+			"command": "cmake -S driver -B driver/build && cmake --build driver/build --config Debug",
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

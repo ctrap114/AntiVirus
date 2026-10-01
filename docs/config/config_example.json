@@ -1,0 +1,56 @@
+{
+  "cache": {
+    "whitelist": {
+      "backend": "memory"
+    },
+    "hash": {
+      "backend": "lmdb",
+      "path": "cache/hash.db",
+      "map_size": 10737418240
+    }
+  },
+  "engine": {
+    "auto_quarantine": true,
+    "whitelist": [
+      "C:\\\\Windows\\\\System32\\\\*.exe"
+    ],
+    "thresholds": {
+      "entropy_high": 7.5,
+      "overlay_ratio": 0.15
+    }
+  },
+  "pipeline": {
+    "enabled_stages": [
+      "cache",
+      "rule",
+      "ai",
+      "behavior"
+    ],
+    "rule_engine": {
+      "rules_path": "yara_rules/"
+    },
+    "ai_assistant": {
+      "model_path": "models/assistant.pkl",
+      "enabled": true
+    },
+    "deep_ai": {
+      "model_path": "models/deep.pth",
+      "image_size": 128,
+      "enabled": true
+    },
+    "behavior_analyzer": {
+      "keywords": [
+        "CreateRemoteThread",
+        "VirtualAlloc"
+      ],
+      "enabled": true
+    },
+    "weights": {
+      "hash": 100,
+      "rule": 50,
+      "ai": 20,
+      "deep_ai": 30,
+      "behavior": 60
+    }
+  }
+}

@@ -1,0 +1,383 @@
+{
+  "$defs": {
+    "AIAssistantConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for sklearn-based AI assistant.",
+      "properties": {
+        "model_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Path"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      },
+      "title": "AIAssistantConfig",
+      "type": "object"
+    },
+    "BehaviorConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for behavior-based analysis.",
+      "properties": {
+        "keywords": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Keywords"
+        },
+        "weights": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weights"
+        },
+        "whitelist_paths": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Whitelist Paths"
+        },
+        "whitelist_names": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Whitelist Names"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      },
+      "title": "BehaviorConfig",
+      "type": "object"
+    },
+    "DeepAIConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for deep learning multi-modal assistant.",
+      "properties": {
+        "model_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Path"
+        },
+        "image_size": {
+          "default": 128,
+          "title": "Image Size",
+          "type": "integer"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      },
+      "title": "DeepAIConfig",
+      "type": "object"
+    },
+    "RuleEngineConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for rule-based detection engine.",
+      "properties": {
+        "rules_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rules Path"
+        },
+        "yara_rules": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Yara Rules"
+        },
+        "pattern_rules": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pattern Rules"
+        }
+      },
+      "title": "RuleEngineConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "enabled_stages": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enabled Stages"
+    },
+    "enable_cache": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enable Cache"
+    },
+    "enable_rule": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enable Rule"
+    },
+    "enable_ai": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enable Ai"
+    },
+    "enable_behavior": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enable Behavior"
+    },
+    "rule_engine": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RuleEngineConfig"
+        },
+        {
+          "type": "string"
+        },
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rule Engine"
+    },
+    "ai_assistant": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AIAssistantConfig"
+        },
+        {
+          "type": "string"
+        },
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ai Assistant"
+    },
+    "deep_ai": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeepAIConfig"
+        },
+        {
+          "type": "string"
+        },
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Deep Ai"
+    },
+    "behavior_analyzer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BehaviorConfig"
+        },
+        {
+          "type": "string"
+        },
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Behavior Analyzer"
+    },
+    "whitelist": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Whitelist"
+    },
+    "whitelist_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Whitelist Path"
+    },
+    "whitelist_file": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Whitelist File"
+    },
+    "whitelist_ttl": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Whitelist Ttl"
+    },
+    "weights": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Weights"
+    }
+  },
+  "title": "PipelineConfig",
+  "type": "object"
+}

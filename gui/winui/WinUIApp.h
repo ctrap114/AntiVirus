@@ -21,7 +21,7 @@
 #include "WinUIProtectionMonitor.h"
 #include "WinUITrayIcon.h"
 
-namespace heliosav::gui {
+namespace everbloom::gui {
 
 enum class UiStyle {
     FluentLight,
@@ -144,4 +144,4 @@ winrt::Microsoft::UI::Xaml::UIElement BuildMainContent(
     std::function<void()> on_close_caption = {},
     std::function<void(winrt::Microsoft::UI::Xaml::UIElement)> on_caption_ready = {});
 
-} // namespace heliosav::gui
+} // namespace everbloom::gui

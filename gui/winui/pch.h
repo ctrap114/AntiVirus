@@ -1,0 +1,9 @@
+#pragma once
+#include <windows.h>
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.UI.Xaml.h>
+#include <winrt/Windows.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <string>
+#include <vector>
+#include <memory>

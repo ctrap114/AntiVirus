@@ -1,0 +1,13 @@
+[package]
+name = "edr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# 参考：Fibratus（Windows 内核事件追踪）、Sysmon（遥测格式）、
+# Velociraptor（DFIR 取证查询模式）、Wazuh（HIDS/SIEM 日志合规）
+# 本模块为 EverbloomSecurity 自研 EDR 的起点，提供遥测事件标准化与外部分析服务接入接口。

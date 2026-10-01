@@ -1,0 +1,4 @@
+EverbloomSecurity release notes
+
+This fixture describes ordinary software maintenance, documentation, and release validation.
+It contains no executable payload and no security-control modification instructions.

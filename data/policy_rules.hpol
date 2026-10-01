@@ -1,0 +1,7 @@
+# Everbloom Policy Language smoke-test profile.
+# English and 简体中文 keywords are accepted.
+version 1
+
+block process "C:\ProgramData\EverbloomSecurity\quarantine\blocked-sample.exe" id "quarantine-process"
+阻断 文件 "C:\ProgramData\EverbloomSecurity\quarantine\blocked-sample.exe" 规则名 "隔离文件"
+禁止 网络 "192.0.2.1" 端口 443 规则名 "文档网络测试"

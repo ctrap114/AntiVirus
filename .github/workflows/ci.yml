@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y build-essential libssl-dev libffi-dev
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[quality]"
+      - name: Run tests
+        run: |
+          python -m pytest -q
+      - name: Run detection quality baseline (with gate)
+        run: |
+          python tools/run_quality_baseline.py --rules data/rules --output artifacts/quality-baseline/ci.json --gate --max-fp-rate 0.0 --max-fn-rate 0.0 --max-p95-ms 10.0
+      - name: Validate adversarial training contract
+        run: |
+          python tools/train_adversarial_model.py --dry-run --add-derived-features --augment-per-sample 1
+
+  rust-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --manifest-path engine/Cargo.toml -- --check
+      - name: Run engine tests
+        run: cargo test --manifest-path engine/Cargo.toml --all-targets --release
+
+  windows-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare vcpkg
+        shell: pwsh
+        run: |
+          .\vcpkg\bootstrap-vcpkg.bat
+          .\vcpkg\vcpkg.exe install cppwinrt:x64-windows
+      - name: Configure real WinUI build
+        shell: pwsh
+        run: |
+          cmake -S . -B build-ci -G Ninja `
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DEVERBLOOM_INSTALL_PYTHON=OFF `
+            -DBUILD_TESTS=OFF
+          if (-not (Select-String -Path build-ci/CMakeCache.txt -Pattern 'EVERBLOOM_GUI_IS_WINUI:BOOL=ON')) {
+            throw 'CMake did not select the real WinUI backend.'
+          }
+      - name: Build and stage package
+        shell: pwsh
+        run: |
+          cmake --build build-ci --target stage_engine --parallel 2
+          $engine = Get-ChildItem build-ci -Filter everbloom_engine.exe -Recurse | Select-Object -First 1
+          $gui = Get-ChildItem build-ci -Filter everbloom_gui.exe -Recurse | Select-Object -First 1
+          if (-not $engine -or -not $gui) { throw 'Staged WinUI package is missing engine or GUI.' }
+      - name: ZIP package smoke test
+        shell: pwsh
+        run: |
+          cpack -G ZIP --config build-ci/CPackConfig.cmake
+          $zip = Get-ChildItem build-ci -Filter *.zip | Select-Object -First 1
+          if (-not $zip) { throw 'CPack did not produce a ZIP package.' }
+

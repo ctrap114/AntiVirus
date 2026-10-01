@@ -1,0 +1,11 @@
+{
+  "feature_dim": 12,
+  "input_layout": [
+    "batch",
+    1,
+    12
+  ],
+  "output_kind": "logit",
+  "synthetic_corpus_training": true,
+  "threshold": 0.5
+}

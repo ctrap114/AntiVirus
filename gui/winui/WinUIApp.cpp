@@ -38,7 +38,7 @@
 #include <winrt/Microsoft.UI.h>
 #include <winrt/Microsoft.UI.Windowing.h>
 
-namespace heliosav::gui {
+namespace everbloom::gui {
 namespace xaml = winrt::Microsoft::UI::Xaml;
 namespace controls = winrt::Microsoft::UI::Xaml::Controls;
 namespace media = winrt::Microsoft::UI::Xaml::Media;
@@ -141,12 +141,35 @@ void ApplyWindowIcon(HWND window) {
     if (window == nullptr) {
         return;
     }
-    HICON icon = LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_HELIOSAV_ICON));
+    HICON icon = LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_EVERBLOOM_ICON));
     if (icon == nullptr) {
         return;
     }
     SendMessageW(window, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(icon));
     SendMessageW(window, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(icon));
+}
+
+void ApplyFixedWindowStyle(HWND window) {
+    if (window == nullptr || !IsWindow(window)) {
+        return;
+    }
+    if (IsZoomed(window) != FALSE) {
+        ShowWindow(window, SW_RESTORE);
+    }
+    const LONG_PTR current_style = GetWindowLongPtrW(window, GWL_STYLE);
+    const LONG_PTR fixed_style = current_style
+        & ~static_cast<LONG_PTR>(WS_MAXIMIZEBOX | WS_THICKFRAME);
+    if (fixed_style != current_style) {
+        SetWindowLongPtrW(window, GWL_STYLE, fixed_style);
+        SetWindowPos(
+            window,
+            nullptr,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
 }
 
 void SetWindowTopmost(HWND window, bool topmost) {
@@ -215,10 +238,10 @@ ThemePalette Palette(UiStyle style) {
     default:
         // XIGUA 风格：清新淡蓝灰背景、白色卡片、蓝色主色、橙色警告渐变
         return {
-            ColorOf(238, 243, 248), ColorOf(232, 238, 246), ColorOf(255, 255, 255),
-            ColorOf(224, 228, 236), ColorOf(30, 112, 240), ColorOf(59, 130, 246),
-            ColorOf(21, 31, 47), ColorOf(86, 101, 127), ColorOf(30, 64, 175),
-            ColorOf(30, 112, 240, 42), ColorOf(186, 230, 253), ColorOf(255, 255, 255),
+            ColorOf(248, 251, 255), ColorOf(238, 244, 252), ColorOf(255, 255, 255),
+            ColorOf(208, 227, 245), ColorOf(0, 120, 212), ColorOf(16, 110, 190),
+            ColorOf(26, 26, 26), ColorOf(90, 90, 90), ColorOf(16, 110, 190),
+            ColorOf(0, 120, 212, 31), ColorOf(0, 120, 212), ColorOf(255, 255, 255),
             false};
     }
 }
@@ -280,7 +303,7 @@ winrt::hstring HString(const std::wstring& value) {
     return winrt::hstring(value);
 }
 
-controls::Border Card(xaml::UIElement const& child, ThemePalette const& palette) {
+controls::Border EverbloomCard(xaml::UIElement const& child, ThemePalette const& palette) {
     auto card = controls::Border();
     card.Background(Brush(palette.card));
     card.BorderBrush(Brush(palette.border));
@@ -292,7 +315,7 @@ controls::Border Card(xaml::UIElement const& child, ThemePalette const& palette)
     return card;
 }
 
-controls::Button CommandButton(winrt::hstring const& label, ThemePalette const& palette) {
+controls::Button EverbloomButton(winrt::hstring const& label, ThemePalette const& palette) {
     auto button = controls::Button();
     button.Content(winrt::box_value(label));
     button.MinWidth(132);
@@ -494,7 +517,7 @@ std::vector<std::wstring> QuickScanTargets() {
 bool NativeTrayDisabled() {
     wchar_t value[8]{};
     const DWORD length = GetEnvironmentVariableW(
-        L"HELIOSAV_DISABLE_NATIVE_TRAY", value, static_cast<DWORD>(std::size(value)));
+        L"EVERBLOOM_DISABLE_NATIVE_TRAY", value, static_cast<DWORD>(std::size(value)));
     return length > 0 && length < std::size(value)
         && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
             || value[0] == L'y' || value[0] == L'Y');
@@ -503,7 +526,7 @@ bool NativeTrayDisabled() {
 bool EngineClientDisabled() {
     wchar_t value[8]{};
     const DWORD length = GetEnvironmentVariableW(
-        L"HELIOSAV_DISABLE_ENGINE_CLIENT", value, static_cast<DWORD>(std::size(value)));
+        L"EVERBLOOM_DISABLE_ENGINE_CLIENT", value, static_cast<DWORD>(std::size(value)));
     return length > 0 && length < std::size(value)
         && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
             || value[0] == L'y' || value[0] == L'Y');
@@ -512,7 +535,7 @@ bool EngineClientDisabled() {
 bool EngineProcessDisabled() {
     wchar_t value[8]{};
     const DWORD length = GetEnvironmentVariableW(
-        L"HELIOSAV_DISABLE_ENGINE_PROCESS", value, static_cast<DWORD>(std::size(value)));
+        L"EVERBLOOM_DISABLE_ENGINE_PROCESS", value, static_cast<DWORD>(std::size(value)));
     return length > 0 && length < std::size(value)
         && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
             || value[0] == L'y' || value[0] == L'Y');
@@ -521,7 +544,7 @@ bool EngineProcessDisabled() {
 bool MinimalUiEnabled() {
     wchar_t value[8]{};
     const DWORD length = GetEnvironmentVariableW(
-        L"HELIOSAV_MINIMAL_UI", value, static_cast<DWORD>(std::size(value)));
+        L"EVERBLOOM_MINIMAL_UI", value, static_cast<DWORD>(std::size(value)));
     return length > 0 && length < std::size(value)
         && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
             || value[0] == L'y' || value[0] == L'Y');
@@ -530,7 +553,7 @@ bool MinimalUiEnabled() {
 bool ScanPageDisabled() {
     wchar_t value[8]{};
     const DWORD length = GetEnvironmentVariableW(
-        L"HELIOSAV_DISABLE_SCAN_PAGE", value, static_cast<DWORD>(std::size(value)));
+        L"EVERBLOOM_DISABLE_SCAN_PAGE", value, static_cast<DWORD>(std::size(value)));
     return length > 0 && length < std::size(value)
         && (value[0] == L'1' || value[0] == L't' || value[0] == L'T'
             || value[0] == L'y' || value[0] == L'Y');
@@ -539,7 +562,7 @@ bool ScanPageDisabled() {
 size_t DiagnosticPageLimit(size_t fallback) {
     wchar_t value[16]{};
     const DWORD length = GetEnvironmentVariableW(
-        L"HELIOSAV_PAGE_LIMIT", value, static_cast<DWORD>(std::size(value)));
+        L"EVERBLOOM_PAGE_LIMIT", value, static_cast<DWORD>(std::size(value)));
     if (length == 0 || length >= std::size(value)) {
         return fallback;
     }
@@ -788,7 +811,7 @@ bool ReadUserRegistryDword(
     return result == ERROR_SUCCESS && type == REG_DWORD && bytes == sizeof(value);
 }
 
-constexpr wchar_t kUiPreferencesKey[] = L"Software\\HeliosAV\\UI";
+constexpr wchar_t kUiPreferencesKey[] = L"Software\\Everbloom Security\\UI";
 
 void PersistUiPreferences(
     UiStyle style,
@@ -867,7 +890,7 @@ bool StartWithWindowsEnabled() {
     }
     DWORD type = 0;
     DWORD bytes = 0;
-    const LSTATUS result = RegQueryValueExW(key, L"HeliosAV", nullptr, &type, nullptr, &bytes);
+    const LSTATUS result = RegQueryValueExW(key, L"Everbloom Security", nullptr, &type, nullptr, &bytes);
     RegCloseKey(key);
     return result == ERROR_SUCCESS && type == REG_SZ && bytes > sizeof(wchar_t);
 }
@@ -877,13 +900,13 @@ bool SetStartWithWindows(bool enabled) {
     if (enabled) {
         const std::wstring executable = ExecutablePath();
         return !executable.empty()
-            && SetUserRegistryString(kRunKey, L"HeliosAV", L"\"" + executable + L"\"");
+            && SetUserRegistryString(kRunKey, L"Everbloom Security", L"\"" + executable + L"\"");
     }
     HKEY key = nullptr;
     if (RegOpenKeyExW(HKEY_CURRENT_USER, kRunKey, 0, KEY_SET_VALUE, &key) != ERROR_SUCCESS) {
         return true;
     }
-    const LSTATUS removed = RegDeleteValueW(key, L"HeliosAV");
+    const LSTATUS removed = RegDeleteValueW(key, L"Everbloom Security");
     RegCloseKey(key);
     return removed == ERROR_SUCCESS || removed == ERROR_FILE_NOT_FOUND;
 }
@@ -896,12 +919,12 @@ bool RegisterExplorerScanMenu() {
     const std::wstring command = L"\"" + executable + L"\" --scan \"%1\"";
     const std::wstring background_command = L"\"" + executable + L"\" --scan \"%V\"";
     const std::pair<std::wstring, std::wstring> entries[] = {
-        {L"Software\\Classes\\*\\shell\\HeliosAVScan", command},
-        {L"Software\\Classes\\Directory\\shell\\HeliosAVScan", command},
-        {L"Software\\Classes\\Directory\\Background\\shell\\HeliosAVScan", background_command},
+        {L"Software\\Classes\\*\\shell\\Everbloom SecurityScan", command},
+        {L"Software\\Classes\\Directory\\shell\\Everbloom SecurityScan", command},
+        {L"Software\\Classes\\Directory\\Background\\shell\\Everbloom SecurityScan", background_command},
     };
     for (const auto& [key, value] : entries) {
-        if (!SetUserRegistryString(key, L"", L"Scan with HeliosAV")
+        if (!SetUserRegistryString(key, L"", L"Scan with Everbloom Security")
             || !SetUserRegistryString(key + L"\\command", L"", value)) {
             return false;
         }
@@ -912,9 +935,9 @@ bool RegisterExplorerScanMenu() {
 bool RemoveExplorerScanMenu() {
     bool success = true;
     const wchar_t* keys[] = {
-        L"Software\\Classes\\*\\shell\\HeliosAVScan",
-        L"Software\\Classes\\Directory\\shell\\HeliosAVScan",
-        L"Software\\Classes\\Directory\\Background\\shell\\HeliosAVScan",
+        L"Software\\Classes\\*\\shell\\Everbloom SecurityScan",
+        L"Software\\Classes\\Directory\\shell\\Everbloom SecurityScan",
+        L"Software\\Classes\\Directory\\Background\\shell\\Everbloom SecurityScan",
     };
     for (const auto* key : keys) {
         const LSTATUS removed = RegDeleteTreeW(HKEY_CURRENT_USER, key);
@@ -932,6 +955,37 @@ std::wstring FileUri(const std::wstring& path) {
         return L"file:///" + normalized;
     }
     return L"file://" + normalized;
+}
+
+std::wstring SidebarAssetPath(const wchar_t* asset_name) {
+    const std::wstring executable = ExecutablePath();
+    if (executable.empty() || asset_name == nullptr) {
+        return {};
+    }
+    const std::filesystem::path path(executable);
+    return (path.parent_path().parent_path() / L"share" / L"everbloom" / L"assets" / L"sidebar" / asset_name).wstring();
+}
+
+controls::Image SidebarIcon(const wchar_t* asset_name, double size) {
+    auto image = controls::Image();
+    image.Width(size);
+    image.Height(size);
+    image.Stretch(media::Stretch::Uniform);
+    const std::wstring asset_path = SidebarAssetPath(asset_name);
+    if (asset_path.empty()) {
+        return image;
+    }
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(asset_path, error)) {
+        return image;
+    }
+    try {
+        auto source = media::Imaging::SvgImageSource();
+        source.UriSource(winrt::Windows::Foundation::Uri(FileUri(asset_path)));
+        image.Source(source);
+    } catch (...) {
+    }
+    return image;
 }
 
 media::Brush RootBackground(const ThemePalette& palette, const std::wstring& image_path) {
@@ -953,7 +1007,7 @@ media::Brush RootBackground(const ThemePalette& palette, const std::wstring& ima
     }
 }
 
-controls::Border HeroCard(const UiStrings& strings, const ThemePalette& palette) {
+controls::Border HeroEverbloomCard(const UiStrings& strings, const ThemePalette& palette) {
     auto hero = controls::Border();
     // Soft gradient background (reference: light blue→white glass).
     auto gradient = media::LinearGradientBrush();
@@ -1030,7 +1084,7 @@ std::vector<std::wstring> ProtectionDirectories() {
     // It remains available as an explicit deployment opt-in.
     wchar_t value[8]{};
     const DWORD length = GetEnvironmentVariableW(
-        L"HELIOSAV_MONITOR_TEMP", value, static_cast<DWORD>(std::size(value)));
+        L"EVERBLOOM_MONITOR_TEMP", value, static_cast<DWORD>(std::size(value)));
     if (length > 0 && length < std::size(value)
         && (value[0] == L'1' || value[0] == L'y' || value[0] == L'Y')) {
         directories.push_back(profile + L"\\AppData\\Local\\Temp");
@@ -1091,10 +1145,13 @@ void RefreshStatistics(const std::shared_ptr<EngineUiState>& state) {
     if (!state || !state->statistics) {
         return;
     }
-    state->statistics.Text(HString(
+    const std::wstring stats_text =
         state->strings.files_processed + L": " + std::to_wstring(state->files_processed)
-        + L"    " + state->strings.threats + L": " + std::to_wstring(state->threat_count)
-        + L"    " + state->strings.errors + L": " + std::to_wstring(state->error_count)));
+        + L"  |  " + state->strings.threats + L": " + std::to_wstring(state->threat_count)
+        + L"  |  " + state->strings.errors + L": " + std::to_wstring(state->error_count)
+        + L"  |  " + (state->scan_active ? L"扫描中" : L"就绪")
+        + L"  |  " + (state->engine_connected ? L"引擎连接正常" : L"引擎未连接");
+    state->statistics.Text(HString(stats_text));
 }
 
 void SetProgressVisual(const std::shared_ptr<EngineUiState>& state, double percent) {
@@ -1350,7 +1407,17 @@ xaml::UIElement AttackChainRow(
         13,
         win_text::FontWeights::Normal(),
         Brush(palette.muted)));
-    auto card = Card(panel, palette);
+    auto card = EverbloomCard(panel, palette);
+    card.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
+    card.BorderThickness(Inset(1));
+    card.CornerRadius(xaml::CornerRadius{12, 12, 12, 12});
+    card.Margin(Inset(0, 0, 0, 16));
+    card.Padding(Inset(20));
+    card.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
+    card.BorderThickness(Inset(1));
+    card.CornerRadius(xaml::CornerRadius{12, 12, 12, 12});
+    card.Margin(Inset(0, 0, 0, 16));
+    card.Padding(Inset(20));
     card.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
     return card;
 }
@@ -1775,7 +1842,7 @@ controls::StackPanel SectionHeading(
     return panel;
 }
 
-controls::Border StatCard(
+controls::Border StatEverbloomCard(
     const winrt::hstring& label,
     const winrt::hstring& value,
     const ThemePalette& palette) {
@@ -1783,7 +1850,7 @@ controls::Border StatCard(
     body.Spacing(5);
     body.Children().Append(Text(label, 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
     body.Children().Append(Text(value, 25, win_text::FontWeights::Bold(), Brush(palette.text)));
-    return Card(body, palette);
+    return EverbloomCard(body, palette);
 }
 
 controls::Grid ThreeColumnGrid() {
@@ -2182,7 +2249,7 @@ void App::OnLaunched(winrt::Microsoft::UI::Xaml::LaunchActivatedEventArgs const&
         const auto dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
         NotifyWinUiStage(dispatcher ? L"OnLaunched: dispatcher ready" : L"OnLaunched: dispatcher missing");
         if (EngineProcessDisabled()) {
-            m_engine_start_error = L"Engine process disabled by HELIOSAV_DISABLE_ENGINE_PROCESS.";
+            m_engine_start_error = L"Engine process disabled by EVERBLOOM_DISABLE_ENGINE_PROCESS.";
             NotifyWinUiStage(L"OnLaunched: engine process disabled by environment");
         } else {
             NotifyWinUiStage(L"OnLaunched: engine startup deferred until after window activation");
@@ -2190,7 +2257,7 @@ void App::OnLaunched(winrt::Microsoft::UI::Xaml::LaunchActivatedEventArgs const&
 
 NotifyWinUiStage(L"OnLaunched: creating Window");
         m_window = xaml::Window();
-        m_window.Title(L"HeliosAV");
+        m_window.Title(L"Everbloom Security");
         if (!MinimalUiEnabled()) {
             m_window.ExtendsContentIntoTitleBar(true);
         }
@@ -2200,7 +2267,7 @@ NotifyWinUiStage(L"OnLaunched: creating Window");
             auto minimal = controls::StackPanel();
             minimal.Padding(Inset(32));
             minimal.Spacing(12);
-            minimal.Children().Append(Text(L"HeliosAV", 28, win_text::FontWeights::Bold(), Brush(ColorOf(30, 64, 175))));
+            minimal.Children().Append(Text(L"Everbloom Security", 28, win_text::FontWeights::Bold(), Brush(ColorOf(30, 64, 175))));
             minimal.Children().Append(Text(L"WinUI runtime is visible.", 16, win_text::FontWeights::Normal(), Brush(ColorOf(51, 65, 85))));
             NotifyWinUiStage(L"OnLaunched: assigning minimal content");
             m_window.Content(minimal);
@@ -2329,8 +2396,8 @@ void App::ApplyBorderlessWindow() {
         auto app_window = m_window.as<winrt::Microsoft::UI::Windowing::AppWindow>();
         auto presenter = app_window.Presenter().as<winrt::Microsoft::UI::Windowing::OverlappedPresenter>();
         presenter.SetBorderAndTitleBar(false, false);
-        presenter.IsResizable(true);
-        presenter.IsMaximizable(true);
+        presenter.IsResizable(false);
+        presenter.IsMaximizable(false);
         presenter.IsMinimizable(true);
         auto title_bar = app_window.TitleBar();
         title_bar.ExtendsContentIntoTitleBar(true);
@@ -2345,6 +2412,7 @@ void App::ApplyBorderlessWindow() {
     } catch (...) {
         NotifyWinUiStage(L"ApplyBorderlessWindow: unknown exception");
     }
+    ApplyFixedWindowStyle(m_native_window);
 }
 
 void App::RequestStartupScanIfReady() {
@@ -2564,7 +2632,7 @@ void App::ShowRealtimeThreatDialog(const EngineScanResponse& response) {
 
     // The tray integration hides the main window instead of terminating the
     // process. Bring it back before attaching a ContentDialog so a realtime
-    // decision is visible even when HeliosAV was running in the tray.
+    // decision is visible even when Everbloom Security was running in the tray.
     try {
         m_window.Activate();
     } catch (...) {
@@ -2785,7 +2853,7 @@ void App::ShowSandboxAnalysisDialog(const EngineScanResponse& response) {
                 win_text::FontWeights::Normal(),
                 Brush(palette.text)));
         }
-        body.Children().Append(Card(notes, palette));
+        body.Children().Append(EverbloomCard(notes, palette));
     }
     dialog.Content(body);
 
@@ -2974,33 +3042,49 @@ auto content_column = controls::ColumnDefinition();
     root.RowDefinitions().Append(main_band);
     NotifyWinUiStage(L"BuildMainContent: root layout ready");
 
+    // The sidebar was mid-migration to a custom EverbloomNavigationView
+    // control. That control has no implementation anywhere in this tree (no
+    // header, no C++/WinRT component generation step), so the sidebar stays a
+    // plain rounded Border -- the same shape the layout was built around.
     auto sidebar = controls::Border();
     sidebar.Background(Brush(palette.sidebar));
     sidebar.CornerRadius(xaml::CornerRadius{0, 18, 18, 0});
-    sidebar.Padding(Inset(20, 26, 20, 20));
+    sidebar.Padding(Inset(18, 24, 18, 20));
     controls::Grid::SetColumn(sidebar, 0);
     auto nav = controls::StackPanel();
-    nav.Spacing(6);
+    nav.Spacing(8);
     sidebar.Child(nav);
 
-    // 品牌行：图标 + HeliosAV（左上角风格简化版）
+    // 品牌行：图标 + Everbloom Security（左上角风格简化版）
     auto brand_row = controls::StackPanel();
     brand_row.Orientation(controls::Orientation::Horizontal);
     brand_row.Spacing(10);
     brand_row.Margin(Inset(0, 0, 0, 18));
-    auto brand_icon = Text(L"\u26A0", 18, win_text::FontWeights::Bold(), Brush(palette.primary));
-    brand_row.Children().Append(brand_icon);
+    auto brand_icon = SidebarIcon(L"brand-mark.svg", 30);
+    brand_icon.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+    brand_icon.VerticalAlignment(xaml::VerticalAlignment::Center);
+    auto brand_badge = controls::Border();
+    brand_badge.Width(40);
+    brand_badge.Height(40);
+    brand_badge.CornerRadius(xaml::CornerRadius{12, 12, 12, 12});
+    brand_badge.Background(Brush(palette.status_background));
+    brand_badge.BorderBrush(Brush(palette.border));
+    brand_badge.BorderThickness(Inset(1));
+    brand_badge.Child(brand_icon);
+    brand_row.Children().Append(brand_badge);
     nav.Children().Append(brand_row);
-    auto brand_title = Text(L"HeliosAV", 16, win_text::FontWeights::SemiBold(), Brush(palette.text));
+    auto brand_title = Text(L"Everbloom Security", 16, win_text::FontWeights::SemiBold(), Brush(palette.text));
     brand_row.Children().Append(brand_title);
 
     nav.Children().Append(Text(L"概览", 11, win_text::FontWeights::SemiBold(), Brush(palette.sidebar_text)));
 
     auto status_pill = controls::Border();
     status_pill.Background(Brush(palette.status_background));
-    status_pill.CornerRadius(xaml::CornerRadius{8, 8, 8, 8});
-    status_pill.Padding(Inset(10, 8, 10, 8));
-    status_pill.Margin(Inset(0, 12, 0, 14));
+    status_pill.BorderBrush(Brush(palette.border));
+    status_pill.BorderThickness(Inset(1));
+    status_pill.CornerRadius(xaml::CornerRadius{10, 10, 10, 10});
+    status_pill.Padding(Inset(12, 9, 12, 9));
+    status_pill.Margin(Inset(0, 10, 0, 12));
     state->connection = Text(HString(strings.engine_connecting), 13, win_text::FontWeights::SemiBold(), Brush(palette.status_text));
     status_pill.Child(state->connection);
     nav.Children().Append(status_pill);
@@ -3014,6 +3098,7 @@ auto content_column = controls::ColumnDefinition();
     }
     style_picker.SelectedIndex(static_cast<int32_t>(style));
     style_picker.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
+    style_picker.Margin(Inset(0, 5, 0, 4));
     style_picker.SelectionChanged([on_preferences_changed, language, accent, background_image](auto const& sender, auto const&) {
         RunUiSafely(L"Sidebar style selector", [&] {
             if (!on_preferences_changed) {
@@ -3066,12 +3151,12 @@ auto content_column = controls::ColumnDefinition();
     auto dashboard = controls::StackPanel();
     dashboard.Spacing(8);
     dashboard.Children().Append(header);
-    dashboard.Children().Append(HeroCard(strings, palette));
-    dashboard.Children().Append(Card(overview, palette));
+    dashboard.Children().Append(HeroEverbloomCard(strings, palette));
+    dashboard.Children().Append(EverbloomCard(overview, palette));
     auto stats_grid = ThreeColumnGrid();
-    auto safe_card = StatCard(HString(strings.protection_surface), HString(strings.ready), palette);
-    auto threat_card = StatCard(HString(strings.threats_this_session), L"0", palette);
-    auto error_card = StatCard(HString(strings.engine_errors), L"0", palette);
+    auto safe_card = StatEverbloomCard(HString(strings.protection_surface), HString(strings.ready), palette);
+    auto threat_card = StatEverbloomCard(HString(strings.threats_this_session), L"0", palette);
+    auto error_card = StatEverbloomCard(HString(strings.engine_errors), L"0", palette);
     PutInColumn(safe_card, 0, stats_grid);
     PutInColumn(threat_card, 1, stats_grid);
     PutInColumn(error_card, 2, stats_grid);
@@ -3091,14 +3176,14 @@ auto content_column = controls::ColumnDefinition();
         AppendActivity(state, HString(strings.engine_startup_prefix + engine_start_error));
     }
     dashboard_activity.Children().Append(state->activity);
-    dashboard.Children().Append(Card(dashboard_activity, palette));
+    dashboard.Children().Append(EverbloomCard(dashboard_activity, palette));
     NotifyWinUiStage(L"BuildMainContent: dashboard ready");
 
     auto scan_page = controls::StackPanel();
     scan_page.Spacing(10);
 #if 0 // diagnostic scan-page variants; production uses the safe branch below
     wchar_t scan_page_mode[32]{};
-    GetEnvironmentVariableW(L"HELIOSAV_SCAN_PAGE_MODE", scan_page_mode, static_cast<DWORD>(std::size(scan_page_mode)));
+    GetEnvironmentVariableW(L"EVERBLOOM_SCAN_PAGE_MODE", scan_page_mode, static_cast<DWORD>(std::size(scan_page_mode)));
     const std::wstring scan_mode(scan_page_mode);
     if (scan_mode == L"minimal") {
         scan_page.Children().Append(SectionHeading(
@@ -3181,9 +3266,9 @@ auto content_column = controls::ColumnDefinition();
         scan_page.Children().Append(path_box);
         auto buttons = controls::StackPanel();
         buttons.Orientation(controls::Orientation::Horizontal);
-        buttons.Children().Append(CommandButton(HString(strings.quick_scan), palette));
-        buttons.Children().Append(CommandButton(HString(strings.full_scan), palette));
-        buttons.Children().Append(CommandButton(HString(strings.scan_path), palette));
+        buttons.Children().Append(EverbloomButton(HString(strings.quick_scan), palette));
+        buttons.Children().Append(EverbloomButton(HString(strings.full_scan), palette));
+        buttons.Children().Append(EverbloomButton(HString(strings.scan_path), palette));
         scan_page.Children().Append(buttons);
     } else if (scan_mode == L"grid") {
         auto grid = controls::Grid();
@@ -3196,14 +3281,14 @@ auto content_column = controls::ColumnDefinition();
         path_box.Text(HString(UserProfile() + L"\\Downloads"));
         controls::Grid::SetRow(path_box, 0);
         grid.Children().Append(path_box);
-        auto button = CommandButton(HString(strings.scan_path), palette);
+        auto button = EverbloomButton(HString(strings.scan_path), palette);
         controls::Grid::SetRow(button, 1);
         grid.Children().Append(button);
         scan_page.Children().Append(grid);
     } else if (scan_mode == L"button_textbox") {
         scan_page.Children().Append(SectionHeading(
             HString(strings.scan), HString(strings.scan_subtitle), palette));
-        scan_page.Children().Append(CommandButton(HString(strings.scan_path), palette));
+        scan_page.Children().Append(EverbloomButton(HString(strings.scan_path), palette));
         auto path_box = controls::TextBox();
         path_box.PlaceholderText(HString(strings.path_placeholder));
         path_box.Text(HString(UserProfile() + L"\\Downloads"));
@@ -3216,9 +3301,9 @@ auto content_column = controls::ColumnDefinition();
         path_box.Text(HString(UserProfile() + L"\\Downloads"));
         scan_page.Children().Append(path_box);
         auto buttons = controls::StackPanel();
-        buttons.Children().Append(CommandButton(HString(strings.quick_scan), palette));
-        buttons.Children().Append(CommandButton(HString(strings.full_scan), palette));
-        buttons.Children().Append(CommandButton(HString(strings.scan_path), palette));
+        buttons.Children().Append(EverbloomButton(HString(strings.quick_scan), palette));
+        buttons.Children().Append(EverbloomButton(HString(strings.full_scan), palette));
+        buttons.Children().Append(EverbloomButton(HString(strings.scan_path), palette));
         scan_page.Children().Append(buttons);
     } else if (scan_mode == L"textbox_plainbutton") {
         scan_page.Children().Append(SectionHeading(
@@ -3243,9 +3328,9 @@ auto content_column = controls::ColumnDefinition();
             HString(strings.scan), HString(strings.scan_subtitle), palette));
         auto buttons = controls::StackPanel();
         buttons.Orientation(controls::Orientation::Horizontal);
-        buttons.Children().Append(CommandButton(HString(strings.quick_scan), palette));
-        buttons.Children().Append(CommandButton(HString(strings.full_scan), palette));
-        buttons.Children().Append(CommandButton(HString(strings.scan_path), palette));
+        buttons.Children().Append(EverbloomButton(HString(strings.quick_scan), palette));
+        buttons.Children().Append(EverbloomButton(HString(strings.full_scan), palette));
+        buttons.Children().Append(EverbloomButton(HString(strings.scan_path), palette));
         scan_page.Children().Append(buttons);
     } else if (scan_mode == L"legacy") {
         scan_page.Children().Append(SectionHeading(
@@ -3309,19 +3394,19 @@ auto content_column = controls::ColumnDefinition();
                     1024ULL * 1024ULL * 1024ULL);
             NotifyWinUiStage(L"Scan: request sent");
         };
-        auto quick_scan = CommandButton(HString(strings.quick_scan), palette);
+        auto quick_scan = EverbloomButton(HString(strings.quick_scan), palette);
         quick_scan.Click([request_scan, label = HString(strings.quick_scan)](auto const&, auto const&) {
             RunUiSafely(L"Quick scan button", [&] {
                 request_scan(QuickScanTargets(), label);
             });
         });
-        auto full_scan = CommandButton(HString(strings.full_scan), palette);
+        auto full_scan = EverbloomButton(HString(strings.full_scan), palette);
         full_scan.Click([request_scan, label = HString(strings.full_scan)](auto const&, auto const&) {
             RunUiSafely(L"Full scan button", [&] {
                 request_scan({UserProfile()}, label);
             });
         });
-        auto custom_scan = CommandButton(HString(strings.scan_path), palette);
+        auto custom_scan = EverbloomButton(HString(strings.scan_path), palette);
         custom_scan.Click([request_scan, path_box, state, label = HString(strings.custom_scan)](auto const&, auto const&) {
             RunUiSafely(L"Custom scan button", [&] {
                 const std::wstring path(path_box.Text().c_str());
@@ -3362,13 +3447,13 @@ auto content_column = controls::ColumnDefinition();
         scan_threats_panel.Children().Append(state->scan_threats);
         auto scan_threat_actions = controls::StackPanel();
         scan_threat_actions.Orientation(controls::Orientation::Horizontal);
-        auto allow_selected_scan = CommandButton(HString(strings.allow_selected_threats), palette);
+        auto allow_selected_scan = EverbloomButton(HString(strings.allow_selected_threats), palette);
         allow_selected_scan.Click([client, state](auto const&, auto const&) {
             RunUiSafely(L"Allow selected scan threats", [&] {
                 SubmitSelectedThreatAction(state, client, true, ThreatListKind::Scan);
             });
         });
-        auto clear_selected_scan = CommandButton(HString(strings.clear_selected_threats), palette);
+        auto clear_selected_scan = EverbloomButton(HString(strings.clear_selected_threats), palette);
         clear_selected_scan.Click([client, state](auto const&, auto const&) {
             RunUiSafely(L"Clear selected scan threats", [&] {
                 SubmitSelectedThreatAction(state, client, false, ThreatListKind::Scan);
@@ -3377,7 +3462,7 @@ auto content_column = controls::ColumnDefinition();
         scan_threat_actions.Children().Append(allow_selected_scan);
         scan_threat_actions.Children().Append(clear_selected_scan);
         scan_threats_panel.Children().Append(scan_threat_actions);
-        scan_page.Children().Append(Card(scan_threats_panel, palette));
+        scan_page.Children().Append(EverbloomCard(scan_threats_panel, palette));
     }
 #endif
     if (ScanPageDisabled()) {
@@ -3486,15 +3571,15 @@ auto content_column = controls::ColumnDefinition();
                 NotifyWinUiStage(L"Scan: request sent");
             });
         };
-        auto quick_scan = CommandButton(HString(strings.quick_scan), palette);
+        auto quick_scan = EverbloomButton(HString(strings.quick_scan), palette);
         quick_scan.Click([request_scan, label = HString(strings.quick_scan)](auto const&, auto const&) {
             request_scan(QuickScanTargets(), label);
         });
-        auto full_scan = CommandButton(HString(strings.full_scan), palette);
+        auto full_scan = EverbloomButton(HString(strings.full_scan), palette);
         full_scan.Click([request_scan, label = HString(strings.full_scan)](auto const&, auto const&) {
             request_scan({UserProfile()}, label);
         });
-        auto custom_scan = CommandButton(HString(strings.custom_scan), palette);
+        auto custom_scan = EverbloomButton(HString(strings.custom_scan), palette);
         custom_scan.Click([on_custom_scan, request_scan, label = HString(strings.custom_scan)](auto const&, auto const&) {
             RunUiSafely(L"Custom scan target picker", [&] {
                 if (!on_custom_scan) {
@@ -3507,7 +3592,7 @@ auto content_column = controls::ColumnDefinition();
                 });
             });
         });
-        auto cancel_scan = CommandButton(HString(strings.scan_cancel), palette);
+        auto cancel_scan = EverbloomButton(HString(strings.scan_cancel), palette);
         cancel_scan.Click([client, state](auto const&, auto const&) {
             RunUiSafely(L"Cancel scan", [&] {
                 if (client) {
@@ -3548,7 +3633,7 @@ auto content_column = controls::ColumnDefinition();
             win_text::FontWeights::Normal(),
             Brush(palette.muted));
         sandbox_panel.Children().Append(state->sandbox_analysis);
-        auto show_sandbox_details = CommandButton(HString(strings.sandbox_analysis), palette);
+        auto show_sandbox_details = EverbloomButton(HString(strings.sandbox_analysis), palette);
         show_sandbox_details.Click([state, on_sandbox_analysis](auto const&, auto const&) {
             RunUiSafely(L"Show sandbox analysis details", [&] {
                 if (on_sandbox_analysis && state->last_sandbox_response) {
@@ -3557,7 +3642,7 @@ auto content_column = controls::ColumnDefinition();
             });
         });
         sandbox_panel.Children().Append(show_sandbox_details);
-        scan_page.Children().Append(Card(sandbox_panel, palette));
+        scan_page.Children().Append(EverbloomCard(sandbox_panel, palette));
 
         auto scan_threats_panel = controls::StackPanel();
         scan_threats_panel.Spacing(8);
@@ -3578,13 +3663,13 @@ auto content_column = controls::ColumnDefinition();
         scan_threats_panel.Children().Append(state->scan_threats);
         auto scan_threat_actions = controls::StackPanel();
         scan_threat_actions.Orientation(controls::Orientation::Horizontal);
-        auto allow_selected_scan = CommandButton(HString(strings.allow_selected_threats), palette);
+        auto allow_selected_scan = EverbloomButton(HString(strings.allow_selected_threats), palette);
         allow_selected_scan.Click([client, state](auto const&, auto const&) {
             RunUiSafely(L"Allow selected scan threats", [&] {
                 SubmitSelectedThreatAction(state, client, true, ThreatListKind::Scan);
             });
         });
-        auto clear_selected_scan = CommandButton(HString(strings.clear_selected_threats), palette);
+        auto clear_selected_scan = EverbloomButton(HString(strings.clear_selected_threats), palette);
         clear_selected_scan.Click([client, state](auto const&, auto const&) {
             RunUiSafely(L"Clear selected scan threats", [&] {
                 SubmitSelectedThreatAction(state, client, false, ThreatListKind::Scan);
@@ -3593,7 +3678,7 @@ auto content_column = controls::ColumnDefinition();
         scan_threat_actions.Children().Append(allow_selected_scan);
         scan_threat_actions.Children().Append(clear_selected_scan);
         scan_threats_panel.Children().Append(scan_threat_actions);
-        scan_page.Children().Append(Card(scan_threats_panel, palette));
+        scan_page.Children().Append(EverbloomCard(scan_threats_panel, palette));
     }
 
     NotifyWinUiStage(L"BuildMainContent: scan page ready");
@@ -3633,7 +3718,7 @@ auto content_column = controls::ColumnDefinition();
             AppendActivity(state, enabled ? HString(state->strings.monitoring_enabled) : HString(state->strings.monitoring_paused));
         });
     });
-    protection_page.Children().Append(Card(r3, palette));
+    protection_page.Children().Append(EverbloomCard(r3, palette));
     auto driver_protection = controls::ToggleSwitch();
     driver_protection.Header(winrt::box_value(HString(strings.driver_protection)));
     driver_protection.OffContent(winrt::box_value(HString(strings.paused)));
@@ -3661,7 +3746,7 @@ auto content_column = controls::ColumnDefinition();
                 : state->strings.driver_unavailable));
         });
     });
-    protection_page.Children().Append(Card(driver_protection, palette));
+    protection_page.Children().Append(EverbloomCard(driver_protection, palette));
     // File protection toggle.
     auto file_protection = controls::ToggleSwitch();
     file_protection.Header(winrt::box_value(HString(strings.protection_file)));
@@ -3678,7 +3763,7 @@ auto content_column = controls::ColumnDefinition();
             state->status.Text(HString(enabled ? state->strings.protection_file : state->strings.protection_paused));
         });
     });
-    protection_page.Children().Append(Card(file_protection, palette));
+    protection_page.Children().Append(EverbloomCard(file_protection, palette));
     // Quiet mode toggle.
     auto quiet_mode = controls::ToggleSwitch();
     quiet_mode.Header(winrt::box_value(HString(strings.protection_quiet_mode)));
@@ -3694,7 +3779,7 @@ auto content_column = controls::ColumnDefinition();
                 : state->strings.protection_paused));
         });
     });
-    protection_page.Children().Append(Card(quiet_mode, palette));
+    protection_page.Children().Append(EverbloomCard(quiet_mode, palette));
     auto protection_layers = controls::StackPanel();
     protection_layers.Spacing(6);
     protection_layers.Children().Append(Text(
@@ -3707,14 +3792,14 @@ auto content_column = controls::ColumnDefinition();
         14,
         win_text::FontWeights::Normal(),
         Brush(palette.muted)));
-    protection_page.Children().Append(Card(protection_layers, palette));
+    protection_page.Children().Append(EverbloomCard(protection_layers, palette));
     auto protection_info = controls::StackPanel();
     protection_info.Spacing(8);
     protection_info.Children().Append(Text(HString(strings.kernel_policy), 18, win_text::FontWeights::SemiBold(), Brush(palette.text)));
     protection_info.Children().Append(Text(HString(strings.kernel_description), 14, win_text::FontWeights::Normal(), Brush(palette.muted)));
     protection_info.Children().Append(Text(HString(strings.profiles), 14, win_text::FontWeights::SemiBold(), Brush(palette.text)));
     protection_info.Children().Append(Text(HString(strings.localized_rules), 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
-    protection_page.Children().Append(Card(protection_info, palette));
+    protection_page.Children().Append(EverbloomCard(protection_info, palette));
     NotifyWinUiStage(L"BuildMainContent: protection page ready");
 
     auto threats_page = controls::StackPanel();
@@ -3732,19 +3817,19 @@ auto content_column = controls::ColumnDefinition();
     threats_page.Children().Append(state->threats);
     auto threat_actions = controls::StackPanel();
     threat_actions.Orientation(controls::Orientation::Horizontal);
-    auto allow_selected_threats = CommandButton(HString(strings.allow_selected_threats), palette);
+    auto allow_selected_threats = EverbloomButton(HString(strings.allow_selected_threats), palette);
     allow_selected_threats.Click([client, state](auto const&, auto const&) {
         RunUiSafely(L"Allow selected threats page", [&] {
             SubmitSelectedThreatAction(state, client, true, ThreatListKind::Realtime);
         });
     });
-    auto clear_selected_threats = CommandButton(HString(strings.clear_selected_threats), palette);
+    auto clear_selected_threats = EverbloomButton(HString(strings.clear_selected_threats), palette);
     clear_selected_threats.Click([client, state](auto const&, auto const&) {
         RunUiSafely(L"Clear selected threats page", [&] {
             SubmitSelectedThreatAction(state, client, false, ThreatListKind::Realtime);
         });
     });
-    auto clear_threats = CommandButton(HString(strings.clear_threats), palette);
+    auto clear_threats = EverbloomButton(HString(strings.clear_threats), palette);
     clear_threats.Click([state](auto const&, auto const&) {
         RunUiSafely(L"Clear threats button", [&] { ClearThreatViews(state); });
     });
@@ -3771,13 +3856,13 @@ auto content_column = controls::ColumnDefinition();
     quarantine_panel.Children().Append(state->quarantine);
     auto quarantine_actions = controls::StackPanel();
     quarantine_actions.Orientation(controls::Orientation::Horizontal);
-    auto restore_selected = CommandButton(HString(strings.restore_selected_quarantine), palette);
+    auto restore_selected = EverbloomButton(HString(strings.restore_selected_quarantine), palette);
     restore_selected.Click([client, state](auto const&, auto const&) {
         RunUiSafely(L"Restore selected quarantine items", [&] {
             SubmitSelectedQuarantineAction(state, client, true);
         });
     });
-    auto delete_selected = CommandButton(HString(strings.delete_selected_quarantine), palette);
+    auto delete_selected = EverbloomButton(HString(strings.delete_selected_quarantine), palette);
     delete_selected.Click([client, state](auto const&, auto const&) {
         RunUiSafely(L"Delete selected quarantine items", [&] {
             SubmitSelectedQuarantineAction(state, client, false);
@@ -3786,7 +3871,7 @@ auto content_column = controls::ColumnDefinition();
     quarantine_actions.Children().Append(restore_selected);
     quarantine_actions.Children().Append(delete_selected);
     quarantine_panel.Children().Append(quarantine_actions);
-threats_page.Children().Append(Card(quarantine_panel, palette));
+threats_page.Children().Append(EverbloomCard(quarantine_panel, palette));
     NotifyWinUiStage(L"BuildMainContent: threats page ready");
 
     auto attack_chain_page = controls::StackPanel();
@@ -3803,7 +3888,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     state->attack_chain.Height(440);
     state->attack_chain.Background(Brush(palette.canvas));
     attack_chain_page.Children().Append(state->attack_chain);
-    auto clear_chains = CommandButton(HString(strings.attack_chain_clear), palette);
+    auto clear_chains = EverbloomButton(HString(strings.attack_chain_clear), palette);
     clear_chains.Click([state](auto const&, auto const&) {
         RunUiSafely(L"Clear attack chains button", [&] {
             ClearAttackChainViews(state);
@@ -3817,7 +3902,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     activity_page.Spacing(10);
     activity_page.Children().Append(SectionHeading(HString(strings.activity), HString(strings.activity_subtitle), palette));
     activity_page.Children().Append(state->activity_page);
-    auto clear_activity = CommandButton(HString(strings.clear_activity), palette);
+    auto clear_activity = EverbloomButton(HString(strings.clear_activity), palette);
     clear_activity.Click([state](auto const&, auto const&) {
         RunUiSafely(L"Clear activity button", [&] {
             state->activity.Items().Clear();
@@ -3830,7 +3915,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     auto updates_page = controls::StackPanel();
     updates_page.Spacing(10);
     updates_page.Children().Append(SectionHeading(HString(strings.updates), HString(strings.updates_subtitle), palette));
-    auto reload = CommandButton(HString(strings.reload_databases), palette);
+    auto reload = EverbloomButton(HString(strings.reload_databases), palette);
     reload.Click([client, state](auto const&, auto const&) {
         RunUiSafely(L"Reload databases button", [&] {
             AppendActivity(state, HString(state->strings.database_reload_requested));
@@ -3841,7 +3926,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     });
     updates_page.Children().Append(reload);
     updates_page.Children().Append(Text(HString(strings.updates_description), 14, win_text::FontWeights::Normal(), Brush(palette.muted)));
-    auto import_hash_database = CommandButton(HString(strings.import_hash_database), palette);
+    auto import_hash_database = EverbloomButton(HString(strings.import_hash_database), palette);
     import_hash_database.Click([client, state, strings](auto const&, auto const&) {
         RunUiSafely(L"Import hash database", [&] {
             if (!client) {
@@ -3866,7 +3951,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     NotifyWinUiStage(L"BuildMainContent: updates page ready");
 
     // ------------------------------------------------------------------
-    // AI training page: drives `heliosav_engine.exe --train-synthetic`
+    // AI training page: drives `everbloom_engine.exe --train-synthetic`
     // as an out-of-band child process (the main engine IPC stays free).
     // Enhanced with detailed progress, model comparison, semi-auto controls.
     // ------------------------------------------------------------------
@@ -3882,7 +3967,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         13,
         win_text::FontWeights::Normal(),
         Brush(palette.muted)));
-    ai_training_page.Children().Append(Card(training_intro, palette));
+    ai_training_page.Children().Append(EverbloomCard(training_intro, palette));
 
     // Progress bar (visual).
     auto progress_outer = controls::Border();
@@ -3916,7 +4001,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     metrics_panel.Children().Append(training_acc_label);
     metrics_panel.Children().Append(training_time_label);
 
-    // Model comparison card (hidden until training completes).
+    // Model comparison EverbloomCard(hidden until training completes).
     auto comparison_panel = controls::StackPanel();
     comparison_panel.Spacing(6);
     comparison_panel.Visibility(xaml::Visibility::Collapsed);
@@ -3948,7 +4033,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     const auto training_paused = std::make_shared<bool>(false);
 
     // Start button.
-    auto start_training = CommandButton(HString(strings.ai_training_start), palette);
+    auto start_training = EverbloomButton(HString(strings.ai_training_start), palette);
     start_training.Click([training_runner, training_progress_label = training_stage_label,
                           training_epoch = training_epoch_label,
                           training_loss = training_loss_label_txt,
@@ -4094,7 +4179,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         });
     });
     // Pause/Resume button.
-    auto pause_resume = CommandButton(HString(strings.training_pause), palette);
+    auto pause_resume = EverbloomButton(HString(strings.training_pause), palette);
     pause_resume.Click([training_runner, training_progress_label = training_stage_label, training_paused, start_time = training_start_time, strings](auto const&, auto const&) {
         RunUiSafely(L"AI training pause", [&] {
             if (!training_runner || !training_runner->IsRunning()) return;
@@ -4106,7 +4191,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         });
     });
     // Cancel button.
-    auto cancel_training = CommandButton(HString(strings.ai_training_cancel), palette);
+    auto cancel_training = EverbloomButton(HString(strings.ai_training_cancel), palette);
     cancel_training.Click([training_runner, state, strings, training_progress_label = training_stage_label,
                            progress_bar = progress_inner](auto const&, auto const&) {
         RunUiSafely(L"AI training cancel", [&] {
@@ -4132,7 +4217,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     training_controls.Children().Append(button_row);
     training_controls.Children().Append(auto_stop_toggle);
     training_controls.Children().Append(comparison_panel);
-    ai_training_page.Children().Append(Card(training_controls, palette));
+    ai_training_page.Children().Append(EverbloomCard(training_controls, palette));
     NotifyWinUiStage(L"BuildMainContent: AI training page ready");
 
 
@@ -4156,7 +4241,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
             }
         });
     });
-    settings_page.Children().Append(Card(settings_style, palette));
+    settings_page.Children().Append(EverbloomCard(settings_style, palette));
     auto language_picker = controls::ComboBox();
     language_picker.Header(winrt::box_value(HString(strings.language)));
     for (UiLanguage candidate : {UiLanguage::English, UiLanguage::SimplifiedChinese, UiLanguage::TraditionalChinese, UiLanguage::Japanese, UiLanguage::Spanish}) {
@@ -4191,7 +4276,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     settings_page.Children().Append(accent_picker);
     auto background_actions = controls::StackPanel();
     background_actions.Spacing(8);
-    auto choose_background = CommandButton(HString(strings.choose_background), palette);
+    auto choose_background = EverbloomButton(HString(strings.choose_background), palette);
     choose_background.Click([on_preferences_changed, style, language, accent](auto const&, auto const&) {
         RunUiSafely(L"Pick background image", [&] {
             if (!on_preferences_changed) return;
@@ -4201,7 +4286,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
             }
         });
     });
-    auto clear_background = CommandButton(HString(strings.clear_background), palette);
+    auto clear_background = EverbloomButton(HString(strings.clear_background), palette);
     clear_background.Click([on_preferences_changed, style, language, accent](auto const&, auto const&) {
         RunUiSafely(L"Clear background image", [&] {
             if (on_preferences_changed) {
@@ -4212,11 +4297,11 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     background_actions.Children().Append(Text(HString(strings.background_image), 17, win_text::FontWeights::SemiBold(), Brush(palette.text)));
     background_actions.Children().Append(choose_background);
     background_actions.Children().Append(clear_background);
-    settings_page.Children().Append(Card(background_actions, palette));
+    settings_page.Children().Append(EverbloomCard(background_actions, palette));
 
     auto context_actions = controls::StackPanel();
     context_actions.Spacing(8);
-    auto install_context = CommandButton(HString(strings.install_context_menu), palette);
+    auto install_context = EverbloomButton(HString(strings.install_context_menu), palette);
     install_context.Click([state](auto const&, auto const&) {
         RunUiSafely(L"Install Explorer context menu", [&] {
             const bool success = RegisterExplorerScanMenu();
@@ -4225,7 +4310,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
             AppendActivity(state, message);
         });
     });
-    auto remove_context = CommandButton(HString(strings.remove_context_menu), palette);
+    auto remove_context = EverbloomButton(HString(strings.remove_context_menu), palette);
     remove_context.Click([state](auto const&, auto const&) {
         RunUiSafely(L"Remove Explorer context menu", [&] {
             const bool success = RemoveExplorerScanMenu();
@@ -4237,7 +4322,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     context_actions.Children().Append(Text(HString(strings.context_menu), 17, win_text::FontWeights::SemiBold(), Brush(palette.text)));
     context_actions.Children().Append(install_context);
     context_actions.Children().Append(remove_context);
-    settings_page.Children().Append(Card(context_actions, palette));
+    settings_page.Children().Append(EverbloomCard(context_actions, palette));
     auto engine_switches = controls::StackPanel();
     engine_switches.Spacing(6);
     engine_switches.Children().Append(Text(
@@ -4290,7 +4375,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     engine_switches.Children().Append(ai_setting);
     engine_switches.Children().Append(sandbox_setting);
     engine_switches.Children().Append(cloud_setting);
-    settings_page.Children().Append(Card(engine_switches, palette));
+    settings_page.Children().Append(EverbloomCard(engine_switches, palette));
 
     auto model_management = controls::StackPanel();
     model_management.Spacing(8);
@@ -4327,12 +4412,12 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
             AppendActivity(state, HString(strings.ai_model_validation_requested));
         });
     };
-    auto validate_model = CommandButton(HString(strings.validate_ai_model), palette);
+    auto validate_model = EverbloomButton(HString(strings.validate_ai_model), palette);
     validate_model.Click([validate_selected_model](auto const&, auto const&) {
         validate_selected_model(false);
     });
     model_management.Children().Append(validate_model);
-    auto import_model = CommandButton(HString(strings.import_ai_model), palette);
+    auto import_model = EverbloomButton(HString(strings.import_ai_model), palette);
     import_model.Click([validate_selected_model](auto const&, auto const&) {
         validate_selected_model(true);
     });
@@ -4361,9 +4446,14 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         });
     });
     model_management.Children().Append(model_strategy);
-    settings_page.Children().Append(Card(model_management, palette));
+    settings_page.Children().Append(EverbloomCard(model_management, palette));
     auto settings_options = controls::StackPanel();
     settings_options.Spacing(8);
+    // 核心防护引擎组块（自我保护、驱动防护、文件微过滤、开机自启动）
+    auto engine_core_group = controls::StackPanel();
+    engine_core_group.Spacing(8);
+    engine_core_group.Children().Append(Text(
+        HString(L"核心防护引擎组块"), 17, win_text::FontWeights::SemiBold(), Brush(palette.text)));
     auto r3_setting = controls::ToggleSwitch();
     r3_setting.Header(winrt::box_value(HString(strings.r3_protection)));
     r3_setting.IsOn(feature_state->r3_enabled);
@@ -4430,7 +4520,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         transparency_value.Text(HString(std::to_wstring(value) + L"%"));
     };
     transparency_slider.ValueChanged(update_transparency_value);
-    auto apply_transparency = CommandButton(HString(strings.apply_transparency), palette);
+    auto apply_transparency = EverbloomButton(HString(strings.apply_transparency), palette);
     apply_transparency.Click([feature_state, on_feature_settings_changed](auto const&, auto const&) {
         if (on_feature_settings_changed) on_feature_settings_changed(*feature_state);
     });
@@ -4447,14 +4537,14 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     settings_options.Children().Append(transparency_slider);
     settings_options.Children().Append(transparency_value);
     settings_options.Children().Append(apply_transparency);
-    settings_page.Children().Append(Card(settings_options, palette));
+    settings_page.Children().Append(EverbloomCard(settings_options, palette));
     settings_options.Margin(Inset(0, 0, 0, 0));
     auto runtime = controls::StackPanel();
     runtime.Spacing(6);
     runtime.Children().Append(Text(HString(strings.runtime_diagnostics), 18, win_text::FontWeights::SemiBold(), Brush(palette.text)));
     runtime.Children().Append(Text(HString(strings.ipc_endpoint_prefix + (client ? client->Endpoint() : strings.not_configured)), 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
     runtime.Children().Append(Text(engine_start_error.empty() ? HString(strings.engine_launch_requested) : HString(strings.engine_process_prefix + engine_start_error), 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
-    settings_page.Children().Append(Card(runtime, palette));
+    settings_page.Children().Append(EverbloomCard(runtime, palette));
     NotifyWinUiStage(L"BuildMainContent: settings page ready");
 
     // 通知中心页面（通知空状态 + 操作按钮）
@@ -4479,14 +4569,14 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     empty_stack.Children().Append(Text(L"暂无通知", 20, win_text::FontWeights::Bold(), Brush(palette.text)));
     empty_stack.Children().Append(Text(L"暂无通知", 13, win_text::FontWeights::Normal(), Brush(palette.muted)));
     notification_empty.Child(empty_stack);
-    notification_page.Children().Append(Card(notification_empty, palette));
+    notification_page.Children().Append(EverbloomCard(notification_empty, palette));
     auto notification_actions = controls::StackPanel();
     notification_actions.Orientation(controls::Orientation::Horizontal);
     notification_actions.Spacing(8);
     notification_actions.Margin(Inset(0, 12, 0, 0));
-    auto read_all_btn = CommandButton(HString(L"全部已读"), palette);
+    auto read_all_btn = EverbloomButton(HString(L"全部已读"), palette);
     notification_actions.Children().Append(read_all_btn);
-    auto clear_all_btn = CommandButton(HString(L"清空全部"), palette);
+    auto clear_all_btn = EverbloomButton(HString(L"清空全部"), palette);
     notification_actions.Children().Append(clear_all_btn);
     notification_page.Children().Append(notification_actions);
 
@@ -4551,7 +4641,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     laptop_outer.Child(screen);
     protected_stack.Children().Append(illustration_row);
     protected_stack.Children().Append(Text(L"设备已受到保护", 28, win_text::FontWeights::Bold(), Brush(palette.text)));
-    protected_stack.Children().Append(Text(L"西瓜杀毒使您的电脑免受病毒和网络侵害", 14, win_text::FontWeights::Normal(), Brush(palette.muted)));
+    protected_stack.Children().Append(Text(L"驱动级核心防护引擎已激活，系统处于受保护状态", 14, win_text::FontWeights::Normal(), Brush(ColorOf(86, 101, 127))));
     // 快速扫描按钮（绿色风格，代表安全完成）
     auto protected_scan_btn = controls::Button();
     protected_scan_btn.Content(winrt::box_value(HString(strings.quick_scan)));
@@ -4584,6 +4674,16 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     protected_footer.Children().Append(Text(L"·  引擎状态  正常", 11, win_text::FontWeights::SemiBold(), Brush(palette.primary)));
     protected_device_page.Children().Append(protected_footer);
 
+    auto threats_and_notifications_page = controls::StackPanel();
+    threats_and_notifications_page.Spacing(12);
+    threats_and_notifications_page.Children().Append(threats_page);
+    threats_and_notifications_page.Children().Append(notification_page);
+
+    auto activity_and_attack_chain_page = controls::StackPanel();
+    activity_and_attack_chain_page.Spacing(12);
+    activity_and_attack_chain_page.Children().Append(attack_chain_page);
+    activity_and_attack_chain_page.Children().Append(activity_page);
+
 // Restore non-visual state after all threat/sandbox controls have been
     // created. The same snapshot is shared with the next rebuild, so this is
     // safe for theme, accent, language and background changes.
@@ -4602,11 +4702,9 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         {HString(strings.dashboard), HString(strings.dashboard_header), dashboard},
         {HString(strings.scan), HString(strings.scan), scan_page},
         {HString(strings.protection), HString(strings.protection), protection_page},
-        {HString(strings.threats), HString(strings.threats), threats_page},
-        {L"通知中心", L"通知中心", notification_page},
+        {HString(strings.threats), HString(strings.threats), threats_and_notifications_page},
         {L"设备已受到保护", L"设备已受到保护", protected_device_page},
-        {HString(strings.attack_chain), HString(strings.attack_chain_header), attack_chain_page},
-        {HString(strings.activity), HString(strings.activity), activity_page},
+        {HString(strings.activity), HString(strings.activity), activity_and_attack_chain_page},
         {HString(strings.updates), HString(strings.updates), updates_page},
         {HString(strings.ai_training), HString(strings.ai_training), ai_training_page},
         {HString(strings.settings), HString(strings.settings), settings_page},
@@ -4625,22 +4723,44 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
 
     const auto navigation_dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
     nav.Children().Append(Text(HString(strings.workspace), 12, win_text::FontWeights::SemiBold(), Brush(palette.sidebar_text)));
+    auto active_nav_index = std::make_shared<size_t>(0);
+    auto nav_items = std::make_shared<std::vector<controls::Button>>();
+    auto nav_icon_bgs = std::make_shared<std::vector<controls::Border>>();
+    auto nav_indicators = std::make_shared<std::vector<controls::Border>>();
+    auto nav_labels = std::make_shared<std::vector<controls::TextBlock>>();
+    auto apply_nav_selection = [active_nav_index, nav_items, nav_icon_bgs,
+        nav_indicators, nav_labels, palette](size_t selected_index) {
+        if (selected_index >= nav_items->size()) {
+            return;
+        }
+        *active_nav_index = selected_index;
+        for (size_t index = 0; index < nav_items->size(); ++index) {
+            const bool selected = index == *active_nav_index;
+            nav_items->at(index).Background(Brush(selected ? palette.status_background : palette.sidebar));
+            nav_items->at(index).Foreground(Brush(selected ? palette.primary : palette.sidebar_text));
+            nav_icon_bgs->at(index).Background(Brush(selected ? palette.status_background : palette.sidebar));
+            nav_icon_bgs->at(index).BorderBrush(Brush(selected ? palette.status_background : palette.border));
+            nav_indicators->at(index).Visibility(
+                selected ? xaml::Visibility::Visible : xaml::Visibility::Collapsed);
+            nav_labels->at(index).Foreground(Brush(selected ? palette.primary : palette.text));
+        }
+    };
     for (size_t page_index = 0; page_index < pages->size(); ++page_index) {
         const auto nav_label = (*pages)[page_index].nav_label;
-        // 为每个页面配一个简单图标字符（统一风格，不引入图片资源）
-        winrt::hstring glyph = L" \u25A0"; // 默认小方块
-        std::wstring label_str = std::wstring(nav_label.c_str());
-        if (label_str.find(L"概览") != std::wstring::npos || label_str.find(L"dashboard") != std::wstring::npos) glyph = L"\u2302"; // \u2302 = house? use \u2302 (home icon glyph) — but safer: \u1F3E0 for home
-        else if (label_str.find(L"扫描") != std::wstring::npos || label_str.find(L"scan") != std::wstring::npos) glyph = L"\u269B"; // atom / virus-like circle
-        else if (label_str.find(L"保护") != std::wstring::npos || label_str.find(L"protection") != std::wstring::npos) glyph = L"\u1F6E1"; // shield
-        else if (label_str.find(L"威胁") != std::wstring::npos || label_str.find(L"threat") != std::wstring::npos) glyph = L"\u26A0"; // warning
-        else if (label_str.find(L"通知") != std::wstring::npos || label_str.find(L"通知中心") != std::wstring::npos) glyph = L"\u1F514"; // bell circle
-        else if (label_str.find(L"设置") != std::wstring::npos) glyph = L"\u2699"; // gear
-        else if (label_str.find(L"攻击链") != std::wstring::npos) glyph = L"\u26D4"; // stop circle
-        else if (label_str.find(L"活动") != std::wstring::npos) glyph = L"\u270F"; // pencil/check
-        else if (label_str.find(L"更新") != std::wstring::npos) glyph = L"\u21BA"; // refresh
-        else if (label_str.find(L"AI") != std::wstring::npos || label_str.find(L"训练") != std::wstring::npos) glyph = L"\u269D"; // flag/star
-        // 用 StackPanel 包装图标+文字，形成侧边栏行样式
+        // 为每个页面绑定统一 SVG 图标，避免 emoji/字体字形在不同系统上的差异。
+        const wchar_t* icon_asset = L"dashboard.svg";
+        switch (page_index) {
+        case 0: icon_asset = L"dashboard.svg"; break;
+        case 1: icon_asset = L"scan.svg"; break;
+        case 2: icon_asset = L"protection.svg"; break;
+        case 3: icon_asset = L"threats.svg"; break;
+        case 4: icon_asset = L"device.svg"; break;
+        case 5: icon_asset = L"activity.svg"; break;
+        case 6: icon_asset = L"updates.svg"; break;
+        case 7: icon_asset = L"ai-training.svg"; break;
+        case 8: icon_asset = L"settings.svg"; break;
+        default: break;
+        }
         auto row = controls::StackPanel();
         row.Orientation(controls::Orientation::Horizontal);
         row.Spacing(10);
@@ -4650,15 +4770,19 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         icon_bg.CornerRadius(xaml::CornerRadius{8, 8, 8, 8});
         icon_bg.Width(32);
         icon_bg.Height(32);
-        icon_bg.Background(Brush(palette.sidebar));
-        icon_bg.BorderBrush(Brush(palette.border));
+        const bool initially_selected = page_index == 0;
+        icon_bg.Background(Brush(initially_selected ? palette.status_background : palette.sidebar));
+        icon_bg.BorderBrush(Brush(initially_selected ? palette.status_background : palette.border));
         icon_bg.BorderThickness(Inset(1));
         icon_bg.VerticalAlignment(xaml::VerticalAlignment::Center);
-        auto icon_text = Text(glyph, 12, win_text::FontWeights::Normal(), Brush(palette.primary));
-        icon_bg.Child(icon_text);
+        auto icon_image = SidebarIcon(icon_asset, 20);
+        icon_image.HorizontalAlignment(xaml::HorizontalAlignment::Center);
+        icon_image.VerticalAlignment(xaml::VerticalAlignment::Center);
+        icon_bg.Child(icon_image);
         row.Children().Append(icon_bg);
         // 文字标签
-        auto label_text = Text(nav_label, 13, win_text::FontWeights::SemiBold(), Brush(palette.text));
+        auto label_text = Text(nav_label, 13, win_text::FontWeights::SemiBold(),
+            Brush(initially_selected ? palette.primary : palette.text));
         label_text.VerticalAlignment(xaml::VerticalAlignment::Center);
         row.Children().Append(label_text);
         // 选中状态用小圆点指示（简化）
@@ -4668,6 +4792,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         pill_indicator.Height(28);
         pill_indicator.Margin(Inset(-8, 0, 0, 0));
         pill_indicator.Background(Brush(palette.primary));
+        pill_indicator.Visibility(initially_selected ? xaml::Visibility::Visible : xaml::Visibility::Collapsed);
         row.Children().Append(pill_indicator);
         // 按钮容器（透明背景，整行可点击）
         auto item = controls::Button();
@@ -4675,14 +4800,18 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         item.HorizontalAlignment(xaml::HorizontalAlignment::Stretch);
         item.HorizontalContentAlignment(xaml::HorizontalAlignment::Left);
         item.Padding(Inset(10, 10, 14, 10));
-        item.Background(Brush(palette.sidebar));
-        item.Foreground(Brush(palette.sidebar_text));
+        item.Background(Brush(initially_selected ? palette.status_background : palette.sidebar));
+        item.Foreground(Brush(initially_selected ? palette.primary : palette.sidebar_text));
         item.BorderBrush(Brush(palette.border));
         item.BorderThickness(Inset(0));
         item.CornerRadius(xaml::CornerRadius{10, 10, 10, 10});
         item.Margin(Inset(0, 0, 6, 4));
-        item.Click([header_title, pages, page_index, navigation_dispatcher](auto const&, auto const&) {
-            RunUiSafely(L"Navigation button", [header_title, pages, page_index, navigation_dispatcher] {
+        nav_items->push_back(item);
+        nav_icon_bgs->push_back(icon_bg);
+        nav_indicators->push_back(pill_indicator);
+        nav_labels->push_back(label_text);
+        item.Click([header_title, pages, page_index, navigation_dispatcher, apply_nav_selection](auto const&, auto const&) {
+            RunUiSafely(L"Navigation button", [header_title, pages, page_index, navigation_dispatcher, apply_nav_selection] {
                 NotifyWinUiStage(L"Navigation: handler entered");
                 if (page_index >= pages->size()) {
                     NotifyWinUiStage(L"Navigation: page index out of range");
@@ -4690,6 +4819,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
                 }
                 header_title.Text((*pages)[page_index].header);
                 NotifyWinUiStage(L"Navigation: header updated");
+                apply_nav_selection(page_index);
                 auto switch_page = [pages, page_index] {
                     RunUiSafely(L"Navigation switch visibility", [pages, page_index] {
                         for (size_t index = 0; index < pages->size(); ++index) {
@@ -4764,11 +4894,12 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
 
     auto caption_actions = controls::StackPanel();
     caption_actions.Orientation(controls::Orientation::Horizontal);
+    caption_actions.Spacing(4);
+    caption_actions.Padding(Inset(0, 0, 9, 0));
     controls::Grid::SetColumn(caption_actions, 1);
     caption.Children().Append(caption_actions);
 
     const HWND native_window = native_window_provider ? native_window_provider() : nullptr;
-    const bool zoomed = native_window != nullptr && IsZoomed(native_window) != FALSE;
     auto with_alpha = [](Color color, uint8_t alpha) -> Color {
         color.A = alpha;
         return color;
@@ -4796,23 +4927,31 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         }
         return out;
     };
-    auto window_button = [palette, &caption_actions, glass_state](winrt::hstring const& glyph, bool danger) {
+    auto window_button = [palette, &caption_actions, glass_state](winrt::hstring const& glyph, bool danger, winrt::hstring asset = {}) {
         const auto idle = glass_state(danger, 0);
         const auto hover = glass_state(danger, 1);
         const auto pressed = glass_state(danger, 2);
         auto button = controls::Button();
         auto icon = controls::FontIcon();
         icon.Glyph(glyph);
-        icon.FontSize(11);
+        icon.FontSize(12);
         icon.Foreground(Brush(danger
             ? (palette.dark ? ColorOf(248, 113, 113) : ColorOf(190, 18, 60))
             : palette.sidebar_text));
-        button.Content(icon);
-        button.Width(40);
-        button.Height(30);
+        if (asset.empty()) {
+            button.Content(icon);
+        } else {
+            button.Content(SidebarIcon(asset.c_str(), 16));
+        }
+        button.Width(42);
+        button.Height(32);
         button.Padding(Inset(0));
-        button.Margin(Inset(0, 3, 3, 3));
+        button.Margin(Inset(0, 3, 0, 3));
         button.VerticalAlignment(xaml::VerticalAlignment::Center);
+        button.HorizontalContentAlignment(xaml::HorizontalAlignment::Center);
+        button.VerticalContentAlignment(xaml::VerticalAlignment::Center);
+        button.IsTabStop(true);
+        button.UseSystemFocusVisuals(true);
         button.Background(idle.fill);
         button.BorderBrush(idle.rim);
         button.BorderThickness(Inset(1));
@@ -4851,8 +4990,7 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
         return std::make_pair(button, icon);
     };
 
-    auto hamburger_pair = window_button(L"\u2630", false); // hamburger
-    hamburger_pair.second.Margin(Inset(0, 0, 6, 0));
+    auto hamburger_pair = window_button(L"", false, L"sidebar-toggle.svg");
     hamburger_pair.first.Click([pages, page_index_ref = std::make_shared<size_t>(0)](auto const&, auto const&) {
         // 折叠/展开侧边栏：简单切换第一列宽度（演示效果）
         RunUiSafely(L"Sidebar toggle", [&] {
@@ -4860,47 +4998,40 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
             AppendLog(nullptr, HString(L"Sidebar collapsed (placeholder)"));
         });
     });
-    caption_actions.Children().Append(hamburger_pair.first);
 
-    auto bell_pair = window_button(L"\u1F514", false); // 通知铃铛
-    bell_pair.second.Margin(Inset(0, 0, 6, 0));
-    bell_pair.first.Click([pages](auto const&, auto const&) {
-        RunUiSafely(L"Notification bell", [&] {
-            for (size_t i = 0; i < pages->size(); ++i) {
-                const auto label_str = std::wstring((*pages)[i].nav_label.c_str());
-                if (label_str.find(L"通知中心") != std::wstring::npos) {
-                    // 这里无法直接访问外部 dispatcher，但可通过重构实现；先做占位提示
-                    AppendLog(nullptr, HString(L"Navigate to notifications"));
-                    break;
-                }
+    auto bell_pair = window_button(L"", false, L"notifications.svg");
+    bell_pair.first.Click([header_title, pages, navigation_dispatcher, apply_nav_selection](auto const&, auto const&) {
+        RunUiSafely(L"Notification bell", [header_title, pages, navigation_dispatcher, apply_nav_selection] {
+            constexpr size_t alert_page_index = 3;
+            if (alert_page_index >= pages->size()) {
+                return;
+            }
+            header_title.Text((*pages)[alert_page_index].header);
+            apply_nav_selection(alert_page_index);
+            auto switch_page = [pages] {
+                RunUiSafely(L"Notification page switch", [pages] {
+                    for (size_t index = 0; index < pages->size(); ++index) {
+                        (*pages)[index].content.Visibility(
+                            index == 3 ? xaml::Visibility::Visible : xaml::Visibility::Collapsed);
+                    }
+                });
+            };
+            if (!navigation_dispatcher) {
+                switch_page();
+            } else if (!navigation_dispatcher.TryEnqueue(std::move(switch_page))) {
+                NotifyWinUiStage(L"Notification page switch: dispatcher rejected");
             }
         });
     });
-    caption_actions.Children().InsertAt(0, bell_pair.first);
 
     auto minimize_pair = window_button(L"\uE921", false);
+    minimize_pair.first.Width(46);
+    minimize_pair.first.Height(34);
     controls::ToolTipService::SetToolTip(minimize_pair.first, winrt::box_value(HString(strings.window_minimize)));
     minimize_pair.first.Click([native_window](auto const&, auto const&) {
         RunUiSafely(L"Window minimize button", [native_window] {
             if (native_window != nullptr) {
                 ShowWindow(native_window, SW_MINIMIZE);
-            }
-        });
-    });
-
-    auto maximize_pair = window_button(zoomed ? L"\uE923" : L"\uE922", false);
-    controls::ToolTipService::SetToolTip(maximize_pair.first, winrt::box_value(HString(strings.window_maximize)));
-    maximize_pair.first.Click([native_window, maximize_pair](auto const&, auto const&) {
-        RunUiSafely(L"Window maximize button", [native_window, maximize_pair] {
-            if (native_window == nullptr) {
-                return;
-            }
-            if (IsZoomed(native_window) != FALSE) {
-                ShowWindow(native_window, SW_RESTORE);
-                maximize_pair.second.Glyph(L"\uE922");
-            } else {
-                ShowWindow(native_window, SW_MAXIMIZE);
-                maximize_pair.second.Glyph(L"\uE923");
             }
         });
     });
@@ -4951,4 +5082,4 @@ threats_page.Children().Append(Card(quarantine_panel, palette));
     return root;
 }
 
-} // namespace heliosav::gui
+} // namespace everbloom::gui

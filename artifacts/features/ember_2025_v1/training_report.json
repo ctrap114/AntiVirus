@@ -1,0 +1,14 @@
+{
+  "model_version": "ember_2025_v1",
+  "feature_dim": 2381,
+  "selected_feature_dim": 1,
+  "sample_count": 162,
+  "benign_count": 81,
+  "malware_count": 81,
+  "train_count": 130,
+  "val_count": 32,
+  "val_auc": 1.0,
+  "val_accuracy": 1.0,
+  "val_f1": 1.0,
+  "best_iteration": 1
+}

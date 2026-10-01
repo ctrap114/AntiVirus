@@ -1,0 +1,99 @@
+; EverbloomSecurity kernel enforcement driver package.
+;
+; Load order group, class and altitude.
+;
+; This driver blocks during file I/O: raw-disk and MBR writes, vulnerable-driver
+; opens, browser credential-store reads, and high-volume document-write bursts.
+; A filter that blocks I/O belongs in the FSFilter Anti-Virus load order group
+; (320000-329999), and the class must be AntiVirus to match it. The package
+; previously declared Class = ActivityMonitor / LoadOrderGroup = "FSFilter
+; Activity Monitor" with altitude 370030, i.e. the 360000-389999 group, which
+; is for filters that *observe and report* on I/O rather than block it.
+;
+; Within a group, a higher altitude attaches further from the file system, so it
+; sees an I/O request before a lower-altitude filter does. 329671 is
+; deliberately high in the group and deliberately not a round number: it places
+; this filter above the usual anti-virus incumbents so it can veto a raw-disk
+; write or a vulnerable-driver open before the loader acts on it, while staying
+; clear of the 329999 group ceiling and away from the values vendors habitually
+; register (320000, 325000, 328000).
+;
+; 329671 is the altitude this package ships with, and it is usable as-is: it
+; loads and attaches on any test-signing or self-signed deployment, and it does
+; not collide with the incumbent filters that occupy the round values above.
+; The only thing that requires a Microsoft allocation is a submission that goes
+; through WHQL / the attestation signing service, because that review expects
+; an altitude assigned to your company for this load order group. Treat the
+; allocation as a paperwork step for distribution, not as a functional
+; prerequisite: do not block bring-up on it.
+;
+; When that integer does arrive, prefer the documented way of adding a further
+; filter to the same group: append a fraction to the assigned integer (for
+; example 325000.7). That needs no new allocation request, so it is also the
+; cheapest way to resolve a collision with another vendor's filter later.
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = AntiVirus
+ClassGuid   = {b1d1a169-c54f-4379-81db-bee7d88d7454}
+Provider    = %ProviderName%
+CatalogFile = everbloom_driver.cat
+DriverVer   = 08/04/2026,1.0.0.0
+PnpLockdown = 1
+
+[DefaultInstall]
+OptionDesc  = %ServiceDescription%
+CopyFiles   = DriverCopyFiles
+
+[DefaultInstall.Services]
+AddService  = %ServiceName%,0x00000002,ServiceInstall
+
+[DestinationDirs]
+DriverCopyFiles = 12
+
+[SourceDisksNames]
+1 = %DiskName%
+
+[SourceDisksFiles]
+everbloom_driver.sys = 1
+
+[DriverCopyFiles]
+everbloom_driver.sys
+
+[ServiceInstall]
+DisplayName    = %ServiceDisplayName%
+Description    = %ServiceDescription%
+ServiceBinary  = %12%\everbloom_driver.sys
+ServiceType    = 2
+StartType      = 3
+ErrorControl   = 1
+LoadOrderGroup = "FSFilter Anti-Virus"
+AddReg         = InstanceAddReg
+; Required for a minifilter. It makes this service depend on the Filter Manager,
+; which has to be running before any minifilter can attach. The entry was
+; missing, so nothing in the package guaranteed that ordering.
+Dependencies   = FltMgr
+
+[InstanceAddReg]
+HKR,"Instances","DefaultInstance",0x00000000,%DefaultInstance%
+HKR,"Instances\%DefaultInstance%","Altitude",0x00000000,%Altitude%
+HKR,"Instances\%DefaultInstance%","Flags",0x00010001,0
+
+[EverbloomSecurity_ProtectedPaths]
+; List of file system paths that the minifilter should protect from
+; non-system processes (registry values written by install_driver.cmd).
+; Format: "Path\0=Type\0\0" (REG_MULTI_SZ), where Type is 1=protect-writes,
+; 2=protect-deletes, 3=protect-both.
+HKR,"ProtectedPaths","Engine",0x00000000,"%ProgramFiles%\EverbloomSecurity\bin\"
+HKR,"ProtectedPaths","Rules",0x00000000,"%ProgramFiles%\EverbloomSecurity\data\rules\"
+HKR,"ProtectedPaths","Whitelist",0x00000000,"%ProgramFiles%\EverbloomSecurity\data\allowlist.json"
+HKR,"ProtectedPaths","Quarantine",0x00000000,"%LocalAppData%\EverbloomSecurity\quarantine\"
+
+[Strings]
+ProviderName       = "EverbloomSecurity"
+ServiceName        = "EverbloomSecurity"
+ServiceDisplayName = "EverbloomSecurity Kernel Enforcement"
+ServiceDescription = "EverbloomSecurity process, file and IPv4 connection enforcement"
+DefaultInstance    = "EverbloomSecurity Instance"
+Altitude           = "329671"
+DiskName           = "EverbloomSecurity driver package"

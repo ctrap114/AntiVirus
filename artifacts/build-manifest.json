@@ -1,0 +1,15 @@
+﻿{
+    "generated_at":  "2026-09-13T06:12:34.7242003Z",
+    "configuration":  "Release",
+    "rust_target":  "x86_64-pc-windows-msvc",
+    "output_root":  "E:\\HeliosAV\\HeliosAV\\artifacts",
+    "modules":  {
+                    "gui":  {
+                                "status":  "success",
+                                "build":  "E:\\HeliosAV\\HeliosAV\\artifacts\\gui\\cmake-ninja",
+                                "install":  "E:\\HeliosAV\\HeliosAV\\artifacts\\gui\\install",
+                                "bin":  "E:\\HeliosAV\\HeliosAV\\artifacts\\gui\\bin",
+                                "files_copied":  3
+                            }
+                }
+}

@@ -1,0 +1,15 @@
+EverbloomSecurity
+Copyright (c) 2026 EverbloomSecurity Project
+
+本程序为免费软件，您可以依据自由软件基金会发布的 GNU 通用公共许可证
+(GPL) 第 3 版或（您可以选择的）任何更高版本的条款重新分发和/或修改它。
+
+EverbloomSecurity 旨在作为研究/演示目的的工程原型，不提供任何形式的明示或默示
+担保，亦不保证适用于生产环境。请先在受控环境（虚拟机、专用测试机）里
+充分验证后再考虑在日常终端上使用。
+
+完整许可证正文请见：
+  https://www.gnu.org/licenses/gpl-3.0.html
+
+本程序随附二进制组件 (YARA 4.5.5、Microsoft.WindowsAppRuntime 等) 仍然
+受其各自所有者的原始许可证约束；其版权与许可声明位于 share\doc\ 下。

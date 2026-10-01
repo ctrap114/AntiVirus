@@ -1,0 +1,4 @@
+PowerShell administration notes
+
+Use the shell to inspect local build logs and format a text report.
+The example is intentionally limited to harmless documentation and does not download or execute code.

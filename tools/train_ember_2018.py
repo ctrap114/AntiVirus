@@ -5,7 +5,7 @@
   strings, general, header, section, imports, exports, datadirectories（原始 dict，非处理后向量）
 
 核心设计（训练/推理一致性）：
-- 将原始 dict 映射到 HeliosAV 运行时 2381 维布局（与 tools/extract_features.py 逐维一致）：
+- 将原始 dict 映射到 EverbloomSecurity 运行时 2381 维布局（与 tools/extract_features.py 逐维一致）：
     byte_histogram   [0,    256)   运行时=前1024字节直方图；jsonl 只有全文件直方图 → 置 0（无 split，无偏斜）
     pe_header        [256,  318)   可精确/近似重建（缺失字段置 0）
     section_info     [318,  573)   size/vsize/entropy/名字hash/props 精确；VA/PtrRaw 缺失置 0
@@ -145,7 +145,7 @@ def _map_flags(names, table) -> float:
 
 
 def raw_to_vector(obj: dict) -> np.ndarray:
-    """EMBER 原始特征 dict -> HeliosAV 2381 维向量（不可重建组置 0）。"""
+    """EMBER 原始特征 dict -> EverbloomSecurity 2381 维向量（不可重建组置 0）。"""
     vec = np.zeros(EMBER_2025_TOTAL, dtype=np.float32)
     # 组 1 byte_histogram [0,256)：jsonl 直方图为全文件统计，与运行时(前1024字节)语义不同 → 置 0
 
@@ -337,7 +337,7 @@ def main():
         return 1
 
     print('=' * 60)
-    print('EMBER 真实数据集训练（2381 维 HeliosAV 布局）')
+    print('EMBER 真实数据集训练（2381 维 EverbloomSecurity 布局）')
     print('=' * 60)
 
     # 1. 加载数据

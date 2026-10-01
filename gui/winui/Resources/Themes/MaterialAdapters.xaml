@@ -1,0 +1,120 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:EverbloomSecurity.GUI.WinUI"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls">
+
+  <!-- ============================================================
+       MATERIAL ADAPTER BASE
+       Runtime material detection & fallback chain
+  ============================================================ -->
+
+  <ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:EverbloomSecurity.GUI.WinUI"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    xmlns:media="using:Microsoft.UI.Xaml.Media">
+
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="ms-appx:///Resources/Themes/BrandTheme.xaml" />
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- ============================================================
+       MATERIAL ADAPTER BASE CLASS (Runtime Detection)
+       Provides: Mica / DesktopAcrylic / SolidBackground
+  ============================================================ -->
+
+  <local:MaterialAdapter x:Key="MaterialAdapter" />
+
+  <!-- ============================================================
+       WIN11 MATERIAL ADAPTER - Mica + Mica Alt
+  ============================================================ -->
+
+  <ResourceDictionary x:Key="Win11MaterialAdapter">
+    <ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary Source="ms-appx:///Resources/Themes/BrandTheme.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- Win11: Mica Background for Window/Root -->
+    <muxc:ThemeResource x:Key="WindowBackground">
+      <muxc:ThemeResource.Resource>
+        <muxc:MicaBackdrop />
+      </muxc:ThemeResource.Resource>
+    </muxc:ThemeResource>
+
+    <!-- Fallback for unsupported hardware -->
+    <SolidColorBrush x:Key="FallbackBackground" Color="{StaticResource MicaFallback}" />
+
+    <!-- Navigation Pane - Mica Alt -->
+    <muxc:MicaBackdrop x:Key="NavigationBackdrop" Kind="BaseAlt" />
+
+    <!-- Card/Content Background - Semi-transparent over Mica -->
+    <SolidColorBrush x:Key="CardBackground" Color="{StaticResource ColorCard}" Opacity="0.92" />
+    <SolidColorBrush x:Key="CardBackgroundHover" Color="{StaticResource ColorCardHover}" Opacity="0.96" />
+
+    <!-- Navigation Pane -->
+    <SolidColorBrush x:Key="NavigationBackground" Color="{StaticResource ColorNavigationBackground}" Opacity="0.9" />
+    <SolidColorBrush x:Key="NavigationHover" Color="{StaticResource ColorNavigationHover}" />
+
+    <!-- Card Borders -->
+    <SolidColorBrush x:Key="CardBorderBrush" Color="{StaticResource ColorBorder}" />
+    <SolidColorBrush x:Key="CardBorderHoverBrush" Color="{StaticResource ColorBorderHover}" />
+
+    <!-- Window Chrome -->
+    <SolidColorBrush x:Key="CaptionBackground" Color="{StaticResource ColorNavigationBackground}" Opacity="0.8" />
+
+  </ResourceDictionary>
+
+  <!-- ============================================================
+       WIN10 MATERIAL ADAPTER - Desktop Acrylic + Solid Fallback
+  ============================================================ -->
+
+  <ResourceDictionary x:Key="Win10MaterialAdapter">
+    <ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary Source="ms-appx:///Resources/Themes/BrandTheme.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- Win10: Desktop Acrylic Backdrop -->
+    <muxc:DesktopAcrylicBackdrop x:Key="WindowBackdrop"
+        TintColor="{StaticResource AcrylicTintWin10}"
+        TintOpacity="{StaticResource AcrylicTintOpacity}"
+        LuminosityOpacity="{StaticResource AcrylicLuminosityOpacity}"
+        FallbackColor="{StaticResource ColorBackground}" />
+
+    <!-- Fallback for unsupported hardware -->
+    <SolidColorBrush x:Key="FallbackBackground" Color="{StaticResource ColorBackground}" />
+
+    <!-- Navigation Pane - Acrylic -->
+    <muxc:DesktopAcrylicBackdrop x:Key="NavigationBackdrop"
+        TintColor="{StaticResource AcrylicTintWin10}"
+        TintOpacity="0.9"
+        LuminosityOpacity="0.4"
+        FallbackColor="{StaticResource ColorNavigationBackground}" />
+
+    <!-- Card/Content Background - Semi-transparent over Acrylic -->
+    <SolidColorBrush x:Key="CardBackground" Color="{StaticResource ColorCard}" Opacity="0.9" />
+    <SolidColorBrush x:Key="CardBackgroundHover" Color="{StaticResource ColorCardHover}" Opacity="0.95" />
+
+    <!-- Navigation Pane -->
+    <SolidColorBrush x:Key="NavigationBackground" Color="{StaticResource ColorNavigationBackground}" Opacity="0.95" />
+    <SolidColorBrush x:Key="NavigationHover" Color="{StaticResource ColorNavigationHover}" />
+
+    <!-- Card Borders -->
+    <SolidColorBrush x:Key="CardBorderBrush" Color="{StaticResource ColorBorder}" />
+    <SolidColorBrush x:Key="CardBorderHoverBrush" Color="{StaticResource ColorBorderHover}" />
+
+    <!-- Window Chrome -->
+    <SolidColorBrush x:Key="CaptionBackground" Color="{StaticResource ColorNavigationBackground}" Opacity="0.85" />
+
+  </ResourceDictionary>
+
+  <!-- ============================================================
+       MATERIAL ADAPTER RUNTIME SELECTOR
+       Usage: <local:MaterialAdapter.Current ...>
+  ============================================================ -->
+
+  <!-- Runtime Material Selector - Place in App.xaml.cs OnLaunched -->
+  <local:MaterialAdapter x:Key="MaterialAdapterRuntime" />
+
+</ResourceDictionary>

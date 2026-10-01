@@ -1,0 +1,50 @@
+{
+  "additionalProperties": false,
+  "description": "Configuration for rule-based detection engine.",
+  "properties": {
+    "rules_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rules Path"
+    },
+    "yara_rules": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Yara Rules"
+    },
+    "pattern_rules": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pattern Rules"
+    }
+  },
+  "title": "RuleEngineConfig",
+  "type": "object"
+}

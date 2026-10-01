@@ -1,0 +1,10 @@
+{
+  "output_kind": "logit",
+  "input_layout": [
+    "batch",
+    1,
+    12
+  ],
+  "feature_dim": 12,
+  "synthetic_corpus_training": true
+}

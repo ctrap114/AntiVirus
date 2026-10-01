@@ -1,0 +1,52 @@
+[
+  {
+    "path": "tests\\corpus\\benign\\clean_powershell_notes.txt",
+    "filename": "clean_powershell_notes.txt",
+    "label": 0,
+    "size": 203,
+    "sha256": "b16e057606fbae52f509b4740cdb7a983a71808cda61186d0dc206c62ec683b7",
+    "is_pe": false,
+    "family": null,
+    "notes": null
+  },
+  {
+    "path": "tests\\corpus\\benign\\clean_release_notes.txt",
+    "filename": "clean_release_notes.txt",
+    "label": 0,
+    "size": 202,
+    "sha256": "1df605fdc00b55b5a699ef9a14b1867bc17ae503fd71b702e903976ae7dfc233",
+    "is_pe": false,
+    "family": null,
+    "notes": null
+  },
+  {
+    "path": "tests\\corpus\\malicious\\synthetic_eicar.txt",
+    "filename": "synthetic_eicar.txt",
+    "label": 1,
+    "size": 69,
+    "sha256": "131f95c51cc819465fa1797f6ccacf9d494aaaff46fa3eac73ae63ffbdfd8267",
+    "is_pe": false,
+    "family": null,
+    "notes": null
+  },
+  {
+    "path": "tests\\corpus\\malicious\\synthetic_emotet.txt",
+    "filename": "synthetic_emotet.txt",
+    "label": 1,
+    "size": 50,
+    "sha256": "eb353dc2ff5187a76fa6f7303609f969193f7be7b8ef93567b5e6c074657f1a6",
+    "is_pe": false,
+    "family": null,
+    "notes": null
+  },
+  {
+    "path": "tests\\corpus\\malicious\\synthetic_qakbot.bin",
+    "filename": "synthetic_qakbot.bin",
+    "label": 1,
+    "size": 65,
+    "sha256": "d1fa17ddbd5c85417fcbfac7e78f935349b537fc66ce010745da2438e80d6fa0",
+    "is_pe": true,
+    "family": null,
+    "notes": null
+  }
+]

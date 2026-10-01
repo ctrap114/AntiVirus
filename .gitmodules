@@ -1,0 +1,6 @@
+[submodule "vcpkg"]
+	path = vcpkg
+	url = https://github.com/microsoft/vcpkg.git
+[submodule "gui/winui/vcpkg"]
+	path = gui/winui/vcpkg
+	url = https://github.com/microsoft/vcpkg.git

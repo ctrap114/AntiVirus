@@ -1,0 +1,22 @@
+{
+  "model_version": "ember_2018_v1",
+  "feature_dim": 2381,
+  "selected_feature_dim": 110,
+  "nonzero_dim": 1604,
+  "train_count": 5401,
+  "val_count": 599,
+  "benign_count": 3844,
+  "malware_count": 2156,
+  "val_auc": 0.9596838662790697,
+  "val_accuracy": 0.8898163606010017,
+  "val_f1": 0.8390243902439024,
+  "val_tpr_at_fpr_1pct": 0.5534883720930233,
+  "best_iteration": 29,
+  "rows_per_shard": 2000,
+  "shards": [
+    "train_features_0.jsonl",
+    "train_features_3.jsonl",
+    "train_features_5.jsonl"
+  ],
+  "note": "histogram/strings/resources \u7ec4\u4e0e header \u7f3a\u5931\u5b57\u6bb5\u7f6e 0\uff08jsonl \u4e0d\u53ef\u91cd\u5efa\uff09\uff0c\u6a21\u578b\u4e0d\u4f9d\u8d56\u8fd9\u4e9b\u7ef4\u5ea6"
+}

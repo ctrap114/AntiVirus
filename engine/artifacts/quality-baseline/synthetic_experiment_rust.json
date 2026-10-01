@@ -1,0 +1,66 @@
+{
+  "corpus_dir": "C:\\Users\\Administrator\\AppData\\Local\\Temp\\opencode\\variety\\b",
+  "sample_count": 1660,
+  "seed": 222,
+  "threshold": 0.5,
+  "baseline": {
+    "name": "baseline",
+    "families": [
+      "benign_like",
+      "packed_like"
+    ],
+    "train_samples": 442,
+    "valid_samples": 102,
+    "test_samples": 136,
+    "epochs_trained": 80,
+    "best_valid_accuracy": 1.0,
+    "test_metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0,
+      "false_negative_rate": 0.0
+    },
+    "per_family_recall": {
+      "benign_like": 1.0,
+      "packed_like": 1.0
+    }
+  },
+  "augmented": {
+    "name": "augmented",
+    "families": [
+      "benign_like",
+      "packed_like",
+      "api_heavy_like",
+      "stealth_like",
+      "credential_stealer_like",
+      "downloader_like",
+      "ransomware_like"
+    ],
+    "train_samples": 1079,
+    "valid_samples": 249,
+    "test_samples": 332,
+    "epochs_trained": 80,
+    "best_valid_accuracy": 1.0,
+    "test_metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0,
+      "false_negative_rate": 0.0
+    },
+    "per_family_recall": {
+      "api_heavy_like": 1.0,
+      "benign_like": 1.0,
+      "credential_stealer_like": 1.0,
+      "downloader_like": 1.0,
+      "packed_like": 1.0,
+      "ransomware_like": 1.0,
+      "stealth_like": 1.0
+    }
+  },
+  "accuracy_gain": 0.0,
+  "recall_gain": 0.0,
+  "selected_model": "augmented",
+  "onnx_path": "artifacts/models/synthetic_experiment/heliosav_synthetic_rust.onnx"
+}

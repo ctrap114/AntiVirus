@@ -1,8 +1,8 @@
-# HeliosAV 🐾
+# Everbloom Security 🐾
 
 > 一只正在认真成长的多语言杀毒软件猫娘，喵~
 
-HeliosAV 是一个面向 Windows 桌面的杀毒软件工程原型，结合了 **WinUI 3 / C++/WinRT GUI**、**Rust 扫描引擎**、**Python 配置与分析工具链**、SQLite 病毒哈希库、YARA 规则集与 ONNX 模型推理。项目当前属于**可运行、可演示、可继续开发的工程原型**，尚未达到生产级终端安全产品标准，不能替代成熟商业杀毒软件。
+Everbloom Security 是一个面向 Windows 桌面的杀毒软件工程原型，结合了 **WinUI 3 / C++/WinRT GUI**、**Rust 扫描引擎**、**Python 配置与分析工具链**、SQLite 病毒哈希库、YARA 规则集与 ONNX 模型推理。项目当前属于**可运行、可演示、可继续开发的工程原型**，尚未达到生产级终端安全产品标准，不能替代成熟商业杀毒软件。
 
 ## 当前状态
 
@@ -15,8 +15,8 @@ HeliosAV 是一个面向 Windows 桌面的杀毒软件工程原型，结合了 *
 | 进程通信 | Windows Named Pipe IPC |
 | 病毒数据库 | SQLite + 本地 SHA-256 补充 |
 | 动态分析 | 可选 Windows Sandbox，失败时安全关闭 |
-| 可运行发行版 | `artifacts/package/output/HeliosAV-1.0.0-Windows.zip` |
-| 安装程序 | `artifacts/package/output/HeliosAV-0.1.0-Windows-Setup.exe` |
+| 可运行发行版 | `artifacts/package/output/EverbloomSecurity-1.0.0-Windows.zip` |
+| 安装程序 | `artifacts/package/output/EverbloomSecurity-0.1.0-Windows-Setup.exe` |
 | EMBER 数据集训练 | 已完成（真实数据集 60K 样本，AUC 0.9944，399 特征选中） |
 | 生产可用性 | **尚未达到生产级要求** |
 
@@ -49,7 +49,7 @@ HeliosAV 是一个面向 Windows 桌面的杀毒软件工程原型，结合了 *
 ### 构建与打包
 - WinUI 3 构建使用 `CMake` + `Ninja`（`artifacts/gui/cmake-ninja/`）
 - 需要 MSVC SDK `10.0.26100.0`（参考 `.learnings/LEARNINGS.md`）
-- 编译命令参考：`cmake -S . -B artifacts/gui/cmake-ninja -G Ninja -DHELIOSAV_GUI_IS_WINUI=ON`，再 `cmake --build artifacts/gui/cmake-ninja --config Release`
+- 编译命令参考：`cmake -S . -B artifacts/gui/cmake-ninja -G Ninja -DEVERBLOOM_GUI_IS_WINUI=ON`，再 `cmake --build artifacts/gui/cmake-ninja --config Release`
 - 打包使用 `build_install_full.ps1` 和 `tools/build_modules.ps1`
 
 ### 代码质量与测试
@@ -68,9 +68,9 @@ HeliosAV 是一个面向 Windows 桌面的杀毒软件工程原型，结合了 *
    # 2. 构建引擎
    cargo build --manifest-path engine/Cargo.toml --release
    # 3. 构建 GUI
-   cmake --build artifacts/gui/cmake-ninja --config Release --target heliosav_gui
+   cmake --build artifacts/gui/cmake-ninja --config Release --target everbloom_gui
    ```
-4. **运行时要求**：`heliosav_engine.exe` 必须先启动（监听 `127.0.0.1:7743`），GUI 通过 Named Pipe 连接引擎；若引擎未启动，GUI 会显示“等待引擎连接”并继续运行（不崩溃）
+4. **运行时要求**：`everbloom_engine.exe` 必须先启动（监听 `127.0.0.1:7743`），GUI 通过 Named Pipe 连接引擎；若引擎未启动，GUI 会显示“等待引擎连接”并继续运行（不崩溃）
 5. **透明面板与背景图**：`feature_settings.translucent_panels` 控制卡片透明度（0-55%）；`background_image` 可选择自定义背景
 6. **AI 训练**：`tools/train_ember_2018.py` 和 `tools/train_ember_2025.py` 提供两种训练脚本；`gui/winui/WinUIApp.cpp` 中的 `ai_training_page` 提供可视化训练控制（暂停/取消/自动停止、模型比较、ONNX 导入验证）
 
@@ -81,6 +81,6 @@ HeliosAV 是一个面向 Windows 桌面的杀毒软件工程原型，结合了 *
 - `tools/train_ember_2018.py`：EMBER 数据集真实特征映射与模型训练脚本修复
 - `.learn` 文件（构建环境记录，未提交）和 `.github/workflows`（CI 流程，已存在）
 
-构建缓存（`artifacts/**/cmake/`、`target/`、`build/`、`.pytest_cache/`、`__pycache__/`、`HeliosAV-1.0.0-Windows-onnx-converter.msi`、`dist-verified/`、`vcpkg/downloads/` 等）已在 `.gitignore` 中排除，不应提交到仓库。
+构建缓存（`artifacts/**/cmake/`、`target/`、`build/`、`.pytest_cache/`、`__pycache__/`、`EverbloomSecurity-1.0.0-Windows-onnx-converter.msi`、`dist-verified/`、`vcpkg/downloads/` 等）已在 `.gitignore` 中排除，不应提交到仓库。
 
 如需继续开发（运行时深度测试、扫描实时统计绑定、状态动画优化、打包安装程序测试、代码提交与 CI 流程验证），继续说“继续”。

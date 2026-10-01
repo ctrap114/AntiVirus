@@ -1,0 +1,132 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "thresholds": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Thresholds"
+    },
+    "signature_matcher": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Signature Matcher"
+    },
+    "quarantine_manager": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Quarantine Manager"
+    },
+    "auto_quarantine": {
+      "default": false,
+      "title": "Auto Quarantine",
+      "type": "boolean"
+    },
+    "behavior_analyzer": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Behavior Analyzer"
+    },
+    "sandbox_adapter": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sandbox Adapter"
+    },
+    "sandbox_result_store": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sandbox Result Store"
+    },
+    "reputation_store": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reputation Store"
+    },
+    "indicator_store": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Indicator Store"
+    },
+    "rule_engine": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rule Engine"
+    },
+    "whitelist": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Whitelist"
+    },
+    "whitelist_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Whitelist Path"
+    }
+  },
+  "title": "EngineConfig",
+  "type": "object"
+}
