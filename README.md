@@ -1,6 +1,4 @@
-# Everbloom Security 🐾
-
-> 一只正在认真成长的多语言杀毒软件猫娘，喵~
+# Everbloom Security 
 
 Everbloom Security 是一个面向 Windows 桌面的杀毒软件工程原型，结合了 **WinUI 3 / C++/WinRT GUI**、**Rust 扫描引擎**、**Python 配置与分析工具链**、SQLite 病毒哈希库、YARA 规则集与 ONNX 模型推理。项目当前属于**可运行、可演示、可继续开发的工程原型**，尚未达到生产级终端安全产品标准，不能替代成熟商业杀毒软件。
 
